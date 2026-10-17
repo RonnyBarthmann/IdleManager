@@ -6,9 +6,9 @@
 #include <math.h>
 
 #define MAX_HEROES 8
-#define MAX_WAYPOINTS 8
+#define MAX_WAYPOINTS 128
 #define DEBUG 1
-#define BIGFLOAT 9999999999999999.9;
+#define BIGFLOAT 9999999999999999.9
 
 struct waypoint {
     int x;
@@ -38,10 +38,10 @@ struct heroClass {
     int isHero;
     int map;
     int x;
-    double xf;
+    //double xf;
     int xTarget;
     int y;
-    double yf;
+    //double yf;
     int yTarget;
     int angle;
     int mana;
@@ -56,7 +56,7 @@ struct heroClass {
     int waypoints;
     double walkCycle;
     int attack;
-    double attacCycle;
+    double attackCycle;
 };
 
 struct heroClass heroes[MAX_HEROES];
@@ -79,7 +79,7 @@ void ClearHero(int hero) {
     heroes[hero].waypoints = 0;
     heroes[hero].walkCycle = 0;
     heroes[hero].attack = 0;
-    heroes[hero].attacCycle = 0;
+    heroes[hero].attackCycle = 0;
     InitWaypointsHero(hero);
 }
 
@@ -125,7 +125,7 @@ void LoadMapTile(int tile) {
     MapTiles[tile].map = LoadImage(MapTiles[tile].mapFilename);
     MapTiles[tile].overlay = LoadImage(MapTiles[tile].overlayFilename);
     MapTiles[tile].collision = LoadImage(MapTiles[tile].collisionFilename);
-    if (MapTiles[tile].collision != -1) InitMapCollision(tile);
+    if (MapTiles[tile].collision != 0) InitMapCollision(tile);
 }
 
 void DrawOverlay(int xPos,int yPos) {
@@ -181,7 +181,6 @@ int rightHand;
 int leftWing1;
 int rightWing1;
 int CanvasBG;
-int HeroBG;
 int HeroBG;
 int VoidBG;
 int Sword;
@@ -303,7 +302,7 @@ int getMapCollisionBox(int x1,int y1,int x2, int y2) {
 }
 
 int getMapCollisionBoxCenter(int x,int y,int r) {
-    return getMapCollisionBox(x-r,y-r,x+r,y-r);
+    return getMapCollisionBox(x-r,y-r,x+r,y+r);
 }
 
 void StartMap(int hero,int map);
@@ -344,24 +343,29 @@ void MonsterAttacksHero(int hero,int monster) {
 
 void MonsterDeamon(int map, int monster) {
     int hero = mapdata[map].hero;
-    mapdata[map].monsterAngle[monster] = LookAt(mapdata[map].monsterX[monster],mapdata[map].monsterY[monster],heroes[hero].x,heroes[hero].y);
-    if (CheckToPointDistance(mapdata[map].monsterX[monster],mapdata[map].monsterY[monster],heroes[hero].x,heroes[hero].y,1000) != 0) {
-        if (CheckToPointDistance(mapdata[map].monsterX[monster],mapdata[map].monsterY[monster],heroes[hero].x,heroes[hero].y,20) != 0) {
-            MonsterAttacksHero(hero,monster);
-        } else {
-            double nextX = mapdata[map].monsterX[monster];
-            double nextY = mapdata[map].monsterY[monster];
-            double speed = ToPointDistance(mapdata[map].monsterX[monster],mapdata[map].monsterY[monster],heroes[hero].x,heroes[hero].y);
-            if (speed > MonsterSpeed(mapdata[map].monsterType[monster])) speed = MonsterSpeed(mapdata[map].monsterType[monster]);
-            nextX += sin(mapdata[map].monsterAngle[monster] / (180.0 / M_PIMALDAUMEN)) * speed;
-            nextY -= cos(mapdata[map].monsterAngle[monster] / (180.0 / M_PIMALDAUMEN)) * speed;
-            if (getMapCollisionBoxCenter(nextX,nextY,0) == 0) {
-                mapdata[map].monsterX[monster] = nextX;
-                mapdata[map].monsterY[monster] = nextY;
-            } else if (getMapCollisionBoxCenter(mapdata[map].monsterX[monster],nextY,0) == 0) {
-                mapdata[map].monsterY[monster] = nextY;
-            } else if (getMapCollisionBoxCenter(nextX,mapdata[map].monsterY[monster],0) == 0) {
-                mapdata[map].monsterX[monster] = nextX;
+    if (mapdata[map].monsterHealth[monster] < 1) {
+        mapdata[map].monsterAlive[monster] = 0;
+    }
+    if (mapdata[map].monsterAlive[monster] != 0) {
+        mapdata[map].monsterAngle[monster] = LookAt(mapdata[map].monsterX[monster],mapdata[map].monsterY[monster],heroes[hero].x,heroes[hero].y);
+        if (CheckToPointDistance(mapdata[map].monsterX[monster],mapdata[map].monsterY[monster],heroes[hero].x,heroes[hero].y,1000) != 0) {
+            if (CheckToPointDistance(mapdata[map].monsterX[monster],mapdata[map].monsterY[monster],heroes[hero].x,heroes[hero].y,20) != 0) {
+                MonsterAttacksHero(hero,monster);
+            } else {
+                double nextX = mapdata[map].monsterX[monster];
+                double nextY = mapdata[map].monsterY[monster];
+                double speed = ToPointDistance(mapdata[map].monsterX[monster],mapdata[map].monsterY[monster],heroes[hero].x,heroes[hero].y);
+                if (speed > MonsterSpeed(mapdata[map].monsterType[monster])) speed = MonsterSpeed(mapdata[map].monsterType[monster]);
+                nextX += sin(mapdata[map].monsterAngle[monster] / (180.0 / M_PIMALDAUMEN)) * speed;
+                nextY -= cos(mapdata[map].monsterAngle[monster] / (180.0 / M_PIMALDAUMEN)) * speed;
+                if (getMapCollisionBoxCenter(nextX,nextY,0) == 0) {
+                    mapdata[map].monsterX[monster] = nextX;
+                    mapdata[map].monsterY[monster] = nextY;
+                } else if (getMapCollisionBoxCenter(mapdata[map].monsterX[monster],nextY,0) == 0) {
+                    mapdata[map].monsterY[monster] = nextY;
+                } else if (getMapCollisionBoxCenter(nextX,mapdata[map].monsterY[monster],0) == 0) {
+                    mapdata[map].monsterX[monster] = nextX;
+                }
             }
         }
     }
@@ -370,7 +374,9 @@ void MonsterDeamon(int map, int monster) {
 void MonstersDeamon(int map) {
     for (int i=0; i<MAX_MONSTERS; i++) {
         if (mapdata[map].monsterExist[i] != 0) {
-            MonsterDeamon(map,i);
+            if (mapdata[map].monsterAlive[i] != 0) {
+                MonsterDeamon(map,i);
+            }
         }
     }
 }
@@ -417,7 +423,7 @@ int HeroNearestMonster(int hero) {
     return monster;
 }
 
-int HeroNearestMonsterDistance(int hero) {
+double HeroNearestMonsterDistance(int hero) {
     int monster = HeroNearestMonster(hero);
     return HeroMonsterDistance(hero,monster);
 }
@@ -793,7 +799,7 @@ int LoadFont() {
     Font[56] = LoadImage("assets/font/56.png"); // 8
     Font[57] = LoadImage("assets/font/57.png"); // 9
     for (int i=0; i<256; i++) {
-        if (Font[i] == -1) return 0;
+        if (Font[i] == 0) return 0;
     }
     return 1;
 }
