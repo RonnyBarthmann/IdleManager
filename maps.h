@@ -1,5 +1,5 @@
 #define MAX_MAPS 1
-#define MAX_MONSTERS 10
+#define MAX_MONSTERS 128
 #define MAX_TILES 32
 
 #define MONSTER_NULL 0

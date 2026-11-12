@@ -9,6 +9,7 @@
 #define MAX_WAYPOINTS 128
 #define DEBUG 1
 #define BIGFLOAT 9999999999999999.9
+#define CONFIG_FILE "game.conf"
 
 struct waypoint {
     int x;
@@ -803,20 +804,55 @@ int LoadFont() {
     }
     return 1;
 }
-    
+
+void InitSettings(void) {
+    renderHeight      = 1080;
+    MapRenderDistance = 1024;
+
+    FILE *f = fopen(CONFIG_FILE, "r");
+    if (!f) return;
+
+    struct {
+        const char *key;
+        int        *target;
+    } settings[] = {
+        { "renderHeight",     &renderHeight },
+        { "renderDistance",   &MapRenderDistance },
+    //  { "Setting",          &Variable},
+    };
+    const size_t n = sizeof(settings) / sizeof(settings[0]);
+
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+        char *p = line;
+        while (*p == ' ' || *p == '\t') p++;
+        for (size_t i = 0; i < n; i++) {
+            size_t keylen = strlen(settings[i].key);
+            if (strncmp(p, settings[i].key, keylen) == 0) {
+                p += keylen;
+                while (*p == ' ' || *p == '\t' || *p == '=') p++;
+                int value = 0;
+                if (sscanf(p, "%d", &value) == 1 && value > 0) *settings[i].target = value;
+                break;
+            }
+        }
+    }
+    fclose(f);
+}
 
 void GameMain(void) {
     InitMapTiles();
     InitMapInfos();
     InitHeroes();
     InitWaypoints();
-    renderHeight = 2160;
+    InitSettings();
+  //renderHeight = 2160;
     renderWidth = renderHeight;
     renderWidth *= 16;
     renderWidth /= 9;
     scale = renderHeight;
     scale /= 1080;
-    MapRenderDistance = 1024;
+  //MapRenderDistance = 1024;
     
     int Canvas = CreateImage(renderWidth,renderHeight);
     if (Canvas==0) return;
