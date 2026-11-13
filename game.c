@@ -7,6 +7,7 @@
 
 #define MAX_HEROES 8
 #define MAX_WAYPOINTS 128
+#define MAX_PROJECTILES 1024
 #define DEBUG 1
 #define BIGFLOAT 9999999999999999.9
 #define CONFIG_FILE "game.conf"
@@ -34,9 +35,28 @@ void InitWaypoints() {
 int renderWidth;
 int renderHeight;
 double scale;
+int engineStep;
+
+struct projectileClass {
+    int valid;
+    int map;
+    int type;
+    int state;
+    double x;
+    double y;
+    double angle;
+    double speed;
+};
+
+struct projectileClass projectiles[MAX_PROJECTILES];
+
+#define CLASS_Knight 0
+#define CLASS_Mage 1
+#define CLASS_Archer 2
 
 struct heroClass {
     int isHero;
+    int class;
     int map;
     int x;
     //double xf;
@@ -62,8 +82,23 @@ struct heroClass {
 
 struct heroClass heroes[MAX_HEROES];
 
+#define PROJECTILE_Arcane 0
+#define PROJECTILE_Arrow 1
+
+void ClearProjectiles(int projectil) {
+    projectiles[projectil].valid = 0;
+    projectiles[projectil].map = 0;
+    projectiles[projectil].type = 0;
+    projectiles[projectil].state = 0;
+    projectiles[projectil].x = 0;
+    projectiles[projectil].y = 0;
+    projectiles[projectil].angle = 0;
+    projectiles[projectil].speed = 0;
+}
+
 void ClearHero(int hero) {
     heroes[hero].isHero = 0;
+    heroes[hero].class = 0;
     heroes[hero].map = 0;
     heroes[hero].x = 0;
     heroes[hero].y = 0;
@@ -185,6 +220,10 @@ int CanvasBG;
 int HeroBG;
 int VoidBG;
 int Sword;
+int Staff;
+int Bow;
+int Arrow;
+int ArcArrow;
 int TargetIcon;
 int monsterHuman;
 int AutopilotOnIcon;
@@ -388,6 +427,67 @@ void MapDeamon(int map) {
     }
 }
 
+int IsMonsterInside(int map, int monster, int x, int y, int size) {
+    if (mapdata[map].monsterX[monster] < (x+size)) {
+        if (mapdata[map].monsterX[monster] > (x-size)) {
+            if (mapdata[map].monsterY[monster] < (y+size)) {
+                if (mapdata[map].monsterY[monster] > (y-size)) {
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+void MonsterGetsFlatDamage(int hero,int monster, double damage);
+
+void MonsterGetsArcaneDamage(int hero,int monster, double damage) {
+    MonsterGetsFlatDamage(hero,monster,damage);
+}
+
+void MonsterGetsPiercingDamage(int hero,int monster, double damage) {
+    MonsterGetsFlatDamage(hero,monster,damage);
+}
+
+void ProjectileDeamon(int projectil) {
+    if (projectiles[projectil].valid != 0) {
+        int map = projectiles[projectil].map;
+        int hero = mapdata[map].hero;
+        if (projectiles[projectil].type == PROJECTILE_Arcane) {
+            projectiles[projectil].x += sin(projectiles[projectil].angle / (180.0 / M_PIMALDAUMEN)) * projectiles[projectil].speed;
+            projectiles[projectil].y -= cos(projectiles[projectil].angle / (180.0 / M_PIMALDAUMEN)) * projectiles[projectil].speed;
+            for (int monster=0; monster<MAX_MONSTERS; monster++) {
+                if (mapdata[map].monsterExist[monster]) {
+                    if (mapdata[map].monsterAlive[monster]) {
+                        if (IsMonsterInside(map,monster,projectiles[projectil].x,projectiles[projectil].y,32) != 0) {
+                            MonsterGetsArcaneDamage(hero,monster,200);
+                            projectiles[projectil].valid = 0;
+                        }
+                    }
+                }
+            }
+            if (getMapCollision(projectiles[projectil].x,projectiles[projectil].y) != 0) projectiles[projectil].valid = 0;
+        }
+        if (projectiles[projectil].type == PROJECTILE_Arrow) {
+            projectiles[projectil].x += sin(projectiles[projectil].angle / (180.0 / M_PIMALDAUMEN)) * projectiles[projectil].speed;
+            projectiles[projectil].y -= cos(projectiles[projectil].angle / (180.0 / M_PIMALDAUMEN)) * projectiles[projectil].speed;
+            for (int monster=0; monster<MAX_MONSTERS; monster++) {
+                if (mapdata[map].monsterExist[monster]) {
+                    if (mapdata[map].monsterAlive[monster]) {
+                        if (IsMonsterInside(map,monster,projectiles[projectil].x,projectiles[projectil].y,32) != 0) {
+                            MonsterGetsPiercingDamage(hero,monster,100);
+                            projectiles[projectil].valid = 0;
+                        }
+                    }
+                }
+            }
+            if (getMapCollision(projectiles[projectil].x,projectiles[projectil].y) != 0) projectiles[projectil].valid = 0;
+        }
+    }
+                
+}
+
 int CheckHeroAtWaypoint(int hero,int waypoint) {
     return CheckToPointDistance(heroes[hero].x,heroes[hero].y,heroWaypoints[hero][waypoint].x,heroWaypoints[hero][waypoint].y,(double)heroes[hero].speed*1.1);
 }
@@ -462,24 +562,59 @@ void MonsterGetsFlatDamage(int hero,int monster, double damage) {
         }
     }
 }
+
+void SpawnProjectile(int map,double x,double y, double angle, int type, double speed) {
+    for (int i=0; i<MAX_PROJECTILES; i++) {
+        if (projectiles[i].valid == 0) {
+            projectiles[i].valid = 1;
+            projectiles[i].type = type;
+            projectiles[i].map = map;
+            projectiles[i].x = x;
+            projectiles[i].y = y;
+            projectiles[i].angle = angle;
+            projectiles[i].speed = speed;
+            return;
+        }
+    }
+}
+
+void KnightAttacksMonster(int hero,int monster) {
+    MonsterGetsFlatDamage(hero,monster,120);
+    heroes[hero].attackCycle = 12;
+}
+
+void MageAttacksMonster(int hero,int monster) {
+    (void)monster; // to get rid of the "unused variable" message
+    if (heroes[hero].mana >= 10) {
+        SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle,PROJECTILE_Arcane,10);
+        heroes[hero].mana -= 10;
+    }
+    heroes[hero].attackCycle = 30;
+}
+
+void ArcherAttacksMonster(int hero,int monster) {
+    (void)monster; // to get rid of the "unused variable" message
+    SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle,PROJECTILE_Arrow,20);
+    heroes[hero].attackCycle = 30;
+}
     
 void HeroAttacksMonster(int hero,int monster) {
-    int map = heroes[hero].map;
-    if (map > -1) {
-        if (monster > -1) {
-            if (monster < MAX_MONSTERS) {
-                if (mapdata[map].monsterExist[monster] != 0) {
-                    if (mapdata[map].monsterAlive[monster] != 0) {
-                        MonsterGetsFlatDamage(hero,monster,10);
-                    }
-                }
+    if (heroes[hero].map > -1) {
+        if (heroes[hero].health > 0) {
+            if (heroes[hero].attackCycle == 0) {
+                if (heroes[hero].class == CLASS_Knight) KnightAttacksMonster(hero,monster);
+                if (heroes[hero].class == CLASS_Mage)   MageAttacksMonster(hero,monster);
+                if (heroes[hero].class == CLASS_Archer) ArcherAttacksMonster(hero,monster);
             }
         }
     }
 }
 
 void HeroDeamon(int hero) {
+    int attackDistance;
     if (heroes[hero].isHero!=0) {
+        
+        if (heroes[hero].attackCycle > 0) heroes[hero].attackCycle--;
         
         if ( heroes[hero].attack == 0) {
             
@@ -507,15 +642,23 @@ void HeroDeamon(int hero) {
                     if (monster > -1) {
                         heroes[hero].xTarget = mapdata[heroes[hero].map].monsterX[monster];
                         heroes[hero].yTarget = mapdata[heroes[hero].map].monsterY[monster];
+                        heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,heroes[hero].xTarget,heroes[hero].yTarget);
                         heroes[hero].walking = 1;
                     }
                 }
             }
             
             if ( heroes[hero].autopilotEnabled != 0) {
-                if (IsMonsterNearHero(hero,20) != 0) {
+                attackDistance = 20;
+                if (heroes[hero].class == CLASS_Knight) attackDistance = 20;
+                if (heroes[hero].class == CLASS_Mage) attackDistance = 500;
+                if (heroes[hero].class == CLASS_Archer) attackDistance = 500;
+                if (IsMonsterNearHero(hero,attackDistance) != 0) {
                     int monster = HeroNearestMonster(hero);
                     if (monster > -1) {
+                        heroes[hero].xTarget = mapdata[heroes[hero].map].monsterX[monster];
+                        heroes[hero].yTarget = mapdata[heroes[hero].map].monsterY[monster];
+                        heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,heroes[hero].xTarget,heroes[hero].yTarget);
                         HeroAttacksMonster(hero,monster);
                         heroes[hero].walking = 0;
                     }
@@ -545,6 +688,12 @@ void HeroDeamon(int hero) {
                 heroes[hero].walkCycle++;
             } else {
                 heroes[hero].walkCycle=0;
+            }
+            
+            if (heroes[hero].mana < heroes[hero].manaMax) {
+                if (engineStep%30 == 0) {
+                    heroes[hero].mana++;
+                }
             }
             
         }
@@ -582,7 +731,19 @@ void DrawMonster(int monster, int map) {
     }
 }
 
-void DrawMonsters(int map, int hero) {
+void DrawProjectiles(int map) {
+    int hero = mapdata[map].hero;
+    for (int i=0; i<MAX_PROJECTILES; i++) {
+        if (projectiles[i].valid != 0) {
+            if (projectiles[i].map == map) {
+                if (projectiles[i].type == PROJECTILE_Arrow) DrawImageRotatedScaled(Arrow,960+projectiles[i].x-heroes[hero].x,540+projectiles[i].y-heroes[hero].y,projectiles[i].angle,0.5f);
+                if (projectiles[i].type == PROJECTILE_Arcane) DrawImageRotatedScaled(ArcArrow,960+projectiles[i].x-heroes[hero].x,540+projectiles[i].y-heroes[hero].y,projectiles[i].angle,0.5f);
+            }
+        }
+    }
+}
+
+void DrawMonsters(int map) {
     for (int i=0; i<MAX_MONSTERS; i++) {
         if (mapdata[map].monsterExist[i] != 0) {
             DrawMonster(i,map);
@@ -684,7 +845,9 @@ void DrawHeroHands(int hero) {
         a = heroes[hero].angle-sin(heroes[hero].walkCycle/10)*10;
         
         rotate_point(&x,&y,heroes[hero].angle);
-        DrawImageRotatedScaled(Sword,960+x,540+y,a,0.5f);
+        if (heroes[hero].class == CLASS_Knight) DrawImageRotatedScaled(Sword,960+x,540+y,a,0.5f);
+        if (heroes[hero].class == CLASS_Mage) DrawImageRotatedScaled(Staff,960+x,540+y,a,0.5f);
+        if (heroes[hero].class == CLASS_Archer) DrawImageRotatedScaled(Bow,960+x,540+y,a,0.5f);
         DrawImageRotatedScaled(rightHand,960+x,540+y,a,0.5f);
     }
 }
@@ -700,7 +863,8 @@ void DrawHero(int canvas, int hero) {
     DrawImageRotatedScaled(head,960,540,heroes[hero].angle,0.5f);
     DrawHeroHands(hero);
     DrawHeroWings(hero);
-    DrawMonsters(heroes[hero].map,hero);
+    DrawMonsters(heroes[hero].map);
+    DrawProjectiles(heroes[hero].map);
     DrawOverlay(heroes[hero].x,heroes[hero].y);
     
     
@@ -713,6 +877,11 @@ void DrawHero(int canvas, int hero) {
     DrawImageScaled(ManaTexture,901,461,(double)118*mana,8);
     
     DrawHeroGUI(hero);
+}
+
+void InitProjectils() {
+    for (int i = 0; i < MAX_PROJECTILES; i++) 
+        ClearProjectiles(i);
 }
 
 void InitHeroes() {
@@ -841,9 +1010,11 @@ void InitSettings(void) {
 }
 
 void GameMain(void) {
+    engineStep = 0;
     InitMapTiles();
     InitMapInfos();
     InitHeroes();
+    InitProjectils();
     InitWaypoints();
     InitSettings();
   //renderHeight = 2160;
@@ -861,6 +1032,23 @@ void GameMain(void) {
         if (HeroCanvas[i]==0) return;
     }
     
+    // weapons
+    
+    Sword = LoadImage("assets/sword.png");
+    if (Sword==0) return;
+    
+    Staff = LoadImage("assets/staff.png");
+    if (Staff==0) return;
+    
+    Bow = LoadImage("assets/bow.png");
+    if (Bow==0) return;
+    
+    Arrow = LoadImage("assets/arrow.png");
+    if (Arrow==0) return;
+    
+    ArcArrow = LoadImage("assets/arc_arrow.png");
+    if (ArcArrow==0) return;
+    
     // heros
     
     head = LoadImage("assets/head.png");
@@ -871,9 +1059,6 @@ void GameMain(void) {
     
     rightHand = LoadImage("assets/handR.png");
     if (rightHand==0) return;
-    
-    Sword = LoadImage("assets/sword.png");
-    if (Sword==0) return;
     
     leftWing1 = LoadImage("assets/LeftWing1.png");
     if (leftWing1==0) return;
@@ -932,27 +1117,32 @@ void GameMain(void) {
     ActiveHeroSlots[3] = 3;
     ActiveHero = 0;
     heroes[0].isHero = 1;
+    heroes[0].class = CLASS_Knight;
     heroes[0].speed = 10;
     heroes[0].autopilotEnabled = 1;
     heroes[0].healthMax = 10000;
     heroes[0].manaMax = 1000;
     heroes[1].isHero = 1;
+    heroes[1].class = CLASS_Knight;
     heroes[1].speed = 10;
     heroes[1].autopilotEnabled = 1;
     heroes[1].healthMax = 10000;
     heroes[1].manaMax = 1000;
     heroes[2].isHero = 1;
+    heroes[2].class = CLASS_Archer;
     heroes[2].speed = 10;
     heroes[2].autopilotEnabled = 1;
     heroes[2].healthMax = 10000;
     heroes[2].manaMax = 1000;
     heroes[3].isHero = 1;
+    heroes[3].class = CLASS_Mage;
     heroes[3].speed = 10;
     heroes[3].autopilotEnabled = 1;
     heroes[3].healthMax = 10000;
     heroes[3].manaMax = 1000;
     
     heroes[4].isHero = 1;
+    heroes[4].class = CLASS_Knight;
     heroes[4].speed = 50;
     heroes[4].autopilotEnabled = 1;
     heroes[4].healthMax = 10000;
@@ -968,6 +1158,7 @@ void GameMain(void) {
         
         for (int i=0; i<MAX_HEROES; i++) HeroDeamon(i);
         for (int i=0; i<MAX_MAPS; i++) MapDeamon(i);
+        for (int i=0; i<MAX_PROJECTILES; i++) ProjectileDeamon(i);
         
         if (manageMode==0) {
             if (ActiveHero>=0) {
@@ -1023,6 +1214,27 @@ void GameMain(void) {
             ActiveHero = 4;
             manageMode = 0;
         }
+        if (key=='6') {
+            heroes[0].class = CLASS_Knight;
+            heroes[1].class = CLASS_Knight;
+            heroes[2].class = CLASS_Knight;
+            heroes[3].class = CLASS_Knight;
+            heroes[4].class = CLASS_Knight;
+        }
+        if (key=='7') {
+            heroes[0].class = CLASS_Mage;
+            heroes[1].class = CLASS_Mage;
+            heroes[2].class = CLASS_Mage;
+            heroes[3].class = CLASS_Mage;
+            heroes[4].class = CLASS_Mage;
+        }
+        if (key=='8') {
+            heroes[0].class = CLASS_Archer;
+            heroes[1].class = CLASS_Archer;
+            heroes[2].class = CLASS_Archer;
+            heroes[3].class = CLASS_Archer;
+            heroes[4].class = CLASS_Archer;
+        }
         if (key=='9') {
             manageMode = 1;
         }
@@ -1065,6 +1277,7 @@ void GameMain(void) {
         }
 
         FlipBuffers();
+        engineStep++;
     }
 }
 
