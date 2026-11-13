@@ -138,8 +138,6 @@ void InitMapInfo(int hero,int map) {
         mapdata[map].starty = 6900;
         mapdata[map].hero = hero;
         mapdata[map].angle = 90;
-        mapdata[map].monsterExist[0] = 1;
-        mapdata[map].monsterType[0] = MONSTER_HUMAN;
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
         AddMonster(map, 0, MONSTER_HUMAN, 6800, 4500,   0,   1,    1,    10,  1000); // BOSS
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
