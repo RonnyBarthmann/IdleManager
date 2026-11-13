@@ -12,6 +12,11 @@
 #define BIGFLOAT 9999999999999999.9
 #define CONFIG_FILE "game.conf"
 
+#define MOUSEBUTTON_Left 1
+#define MOUSEBUTTON_Right 2
+#define MOUSEBUTTON_Middle 3
+#define MOUSEBUTTON_Any 0
+
 struct waypoint {
     int x;
     int y;
@@ -889,15 +894,40 @@ void InitHeroes() {
         ClearHero(i);
 }
 
+void HeroLeftClickCallback(int hero, int x, int y) {
+    heroes[hero].xTarget = x;
+    heroes[hero].yTarget = y;
+}
+
+void HeroRightClickCallback(int hero, int x, int y) {
+    // right now only for debug and "fun to play"
+    heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,x,y);
+    if (heroes[hero].class == CLASS_Mage) {
+        if (heroes[hero].attackCycle == 0) {
+            if (heroes[hero].mana >= 10) {
+                SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle,PROJECTILE_Arcane,10);
+                heroes[hero].mana -= 10;
+            }
+            heroes[hero].attackCycle = 30;
+        }
+    }
+    if (heroes[hero].class == CLASS_Archer) {
+        if (heroes[hero].attackCycle == 0) {
+            SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle,PROJECTILE_Arrow,20);
+            heroes[hero].attackCycle = 30;
+        }
+    }
+}
+
 void HeroClickCallback(int hero, int x, int y) {
     if ( IsInside(x,y,1720,20,80,80) != 0) {
-        if ( GetMousePressed(1)!=0 ) {
+        if ( GetMousePressed(MOUSEBUTTON_Left)!=0 ) {
             manageMode = 1;
         }
         return;
     }
     if ( IsInside(x,y,1820,20,80,80) != 0) {
-        if ( GetMousePressed(1)!=0 ) {
+        if ( GetMousePressed(MOUSEBUTTON_Left)!=0 ) {
             if (heroes[hero].autopilotEnabled != 0) {
                 DisableAutopilot(hero);
             } else {
@@ -906,13 +936,13 @@ void HeroClickCallback(int hero, int x, int y) {
         }
         return;
     }
-    heroes[hero].xTarget = heroes[hero].x + (x-960);
-    heroes[hero].yTarget = heroes[hero].y + (y-540);
+    if (GetMouseIsPressed(MOUSEBUTTON_Left)!=0) HeroLeftClickCallback(hero,heroes[hero].x + (x-960),heroes[hero].y + (y-540));
+    if (GetMouseIsPressed(MOUSEBUTTON_Right)!=0) HeroRightClickCallback(hero,heroes[hero].x + (x-960),heroes[hero].y + (y-540));
 }
 
 void ClickCallback(int x, int y) {
     if (manageMode!=0) {
-        if ( GetMousePressed(1)!=0 ) {
+        if ( GetMousePressed(MOUSEBUTTON_Left)!=0 ) {
             if ( IsInside(x,y,238,130,712,400) != 0) {
                 ActiveHero = ActiveHeroSlots[0];
                 manageMode = 0;
@@ -1269,7 +1299,7 @@ void GameMain(void) {
         DrawImage(VoidBG,0,0,windowWidth_,windowHeight_);
         DrawImage(Canvas,renderX_,renderY_,renderWidth_,renderHeight_);
         
-        if (GetMouseIsPressed(1)!=0) {
+        if (GetMouseIsPressed(MOUSEBUTTON_Any)!=0) {
             int mouseX_ = (double)((double)GetMouseX() - (double)renderX_) / (double)renderWidth_ * (double)1920;
             int mouseY_ = (double)((double)GetMouseY() - (double)renderY_) / (double)renderHeight_ * (double)1080;
             
