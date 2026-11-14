@@ -708,6 +708,8 @@ void HeroDeamon(int hero) {
 void DisableAutopilot(int hero) {
     heroes[hero].autopilot = 0;
     heroes[hero].autopilotEnabled = 0;
+    heroes[hero].xTarget = heroes[hero].x;
+    heroes[hero].yTarget = heroes[hero].y;
 }
 
 void EnableAutopilot(int hero) {
@@ -1275,6 +1277,87 @@ void GameMain(void) {
             StartMap(3,3);
             StartMap(4,4);
         }
+        if (key=='q') {
+            if (manageMode == 0) {
+                if (heroes[ActiveHero].attackCycle == 0) {
+                    if (heroes[ActiveHero].mana >= 40) {
+                        if (heroes[ActiveHero].class == CLASS_Mage) {
+                            for (int i=-20; i<=20; i+=10) SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+i,PROJECTILE_Arcane,10);
+                            heroes[ActiveHero].attackCycle = 30;
+                            heroes[ActiveHero].mana -= 40;
+                        }
+                        if (heroes[ActiveHero].class == CLASS_Archer) {
+                            for (int i=-20; i<=20; i+=10) SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+i,PROJECTILE_Arrow,20);
+                            heroes[ActiveHero].attackCycle = 30;
+                            heroes[ActiveHero].mana -= 40;
+                        }
+                    }
+                }
+            }
+        }
+        if (key=='w') {
+            if (manageMode == 0) {
+                if (heroes[ActiveHero].attackCycle == 0) {
+                    if (heroes[ActiveHero].mana >= 500) {
+                        if (heroes[ActiveHero].class == CLASS_Mage) {
+                            for (int i=0; i<=350; i+=10) SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+i,PROJECTILE_Arcane,10);
+                            heroes[ActiveHero].attackCycle = 60;
+                            heroes[ActiveHero].mana -= 500;
+                        }
+                        if (heroes[ActiveHero].class == CLASS_Archer) {
+                            for (int i=0; i<=350; i+=10) SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+i,PROJECTILE_Arrow,20);
+                            heroes[ActiveHero].attackCycle = 60;
+                            heroes[ActiveHero].mana -= 500;
+                        }
+                    }
+                }
+            }
+        }
+        if (key=='e') {
+            if (manageMode == 0) {
+                if (heroes[ActiveHero].attackCycle == 0) {
+                    if (heroes[ActiveHero].mana >= 10) {
+                        if (heroes[ActiveHero].class == CLASS_Mage) {
+                            SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+(((rand()&2000)/100)-10),PROJECTILE_Arcane,10);
+                            heroes[ActiveHero].attackCycle = 1;
+                            heroes[ActiveHero].mana -= 10;
+                        }
+                        if (heroes[ActiveHero].class == CLASS_Archer) {
+                            SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+(((rand()&2000)/100)-10),PROJECTILE_Arrow,20);
+                            heroes[ActiveHero].attackCycle = 1;
+                            heroes[ActiveHero].mana -= 10;
+                        }
+                    }
+                }
+            }
+        }
+        if (key=='r') {
+            if (manageMode == 0) {
+                if (heroes[ActiveHero].attackCycle == 0) {
+                    if (heroes[ActiveHero].mana >= 500) {
+                        if (heroes[ActiveHero].class == CLASS_Mage) {
+                            for (int i=-24; i<=24; i+=1) SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+i,PROJECTILE_Arcane,10);
+                            heroes[ActiveHero].attackCycle = 60;
+                            heroes[ActiveHero].mana -= 500;
+                        }
+                        if (heroes[ActiveHero].class == CLASS_Archer) {
+                            for (int i=-24; i<=24; i+=1) SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+i,PROJECTILE_Arrow,20);
+                            heroes[ActiveHero].attackCycle = 60;
+                            heroes[ActiveHero].mana -= 500;
+                        }
+                    }
+                }
+            }
+        }
+        if (key=='a') {
+            if (manageMode == 0) {
+                if (heroes[ActiveHero].autopilotEnabled != 0) {
+                    DisableAutopilot(ActiveHero);
+                } else {
+                    EnableAutopilot(ActiveHero);
+                }
+            }
+        }
         
         DrawOutput(0); /* ab jetzt wird direkt auf das Fenster gezeichnet */
         
@@ -1299,11 +1382,15 @@ void GameMain(void) {
         DrawImage(VoidBG,0,0,windowWidth_,windowHeight_);
         DrawImage(Canvas,renderX_,renderY_,renderWidth_,renderHeight_);
         
+        int mouseX_ = (double)((double)GetMouseX() - (double)renderX_) / (double)renderWidth_ * (double)1920;
+        int mouseY_ = (double)((double)GetMouseY() - (double)renderY_) / (double)renderHeight_ * (double)1080;
+        
         if (GetMouseIsPressed(MOUSEBUTTON_Any)!=0) {
-            int mouseX_ = (double)((double)GetMouseX() - (double)renderX_) / (double)renderWidth_ * (double)1920;
-            int mouseY_ = (double)((double)GetMouseY() - (double)renderY_) / (double)renderHeight_ * (double)1080;
-            
             ClickCallback(mouseX_,mouseY_);
+        }
+        
+        if (manageMode == 0) {
+            heroes[ActiveHero].angle = LookAt(heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].x + (mouseX_-960),heroes[ActiveHero].y + (mouseY_-540));
         }
 
         FlipBuffers();
