@@ -74,15 +74,19 @@ struct heroClass {
     int manaMax;
     int health;
     int healthMax;
-    int walking;
     int speed;
     int autopilot;
     int autopilotEnabled;
     int waypoint;
     int waypoints;
+    int walking;
     double walkCycle;
-    int attack;
+    int attacking;
     double attackCycle;
+    int skill;
+    int skilling; // lol (more "use skill" ... but "walking" and "attacking" and yeah ... you get the point ...)
+    double skillCycle;
+    int skillSlots[4];
 };
 
 struct heroClass heroes[MAX_HEROES];
@@ -112,15 +116,22 @@ void ClearHero(int hero) {
     heroes[hero].manaMax = 1;
     heroes[hero].health = 1;
     heroes[hero].healthMax = 1;
-    heroes[hero].walking = 0;
     heroes[hero].speed = 1;
     heroes[hero].autopilot = 0;
     heroes[hero].autopilotEnabled = 0;
     heroes[hero].waypoint = 0;
     heroes[hero].waypoints = 0;
+    heroes[hero].walking = 0;
     heroes[hero].walkCycle = 0;
-    heroes[hero].attack = 0;
+    heroes[hero].attacking = 0;
     heroes[hero].attackCycle = 0;
+    heroes[hero].skill = 0;
+    heroes[hero].skilling = 0;
+    heroes[hero].skillCycle = 0;
+    heroes[hero].skillSlots[0] = 0;
+    heroes[hero].skillSlots[1] = 0;
+    heroes[hero].skillSlots[2] = 0;
+    heroes[hero].skillSlots[3] = 0;
     InitWaypointsHero(hero);
 }
 
@@ -216,21 +227,22 @@ int manageMode;
 int ActiveHeroSlots[4];
 int ActiveHero;
 
-int head;
-int leftHand;
-int rightHand;
-int leftWing1;
-int rightWing1;
+// Texture_IDs
+int Texture_head;
+int Texture_leftHand;
+int Texture_rightHand;
+int Texture_leftWing1;
+int Texture_rightWing1;
 int CanvasBG;
 int HeroBG;
 int VoidBG;
-int Sword;
-int Staff;
-int Bow;
-int Arrow;
-int ArcArrow;
+int Texture_Sword;
+int Texture_Staff;
+int Texture_Bow;
+int Texture_Arrow;
+int Texture_ArcArrow;
 int TargetIcon;
-int monsterHuman;
+int Texture_monsterHuman;
 int AutopilotOnIcon;
 int AutopilotOffIcon;
 int BarTexture;
@@ -239,6 +251,17 @@ int ManaTexture;
 int ManagedModeIcon;
 int FullscreenIcon;
 int Font[256];
+int Texture_Skill_BG;
+int Texture_Skill_Q;
+int Texture_Skill_W;
+int Texture_Skill_E;
+int Texture_Skill_R;
+int Texture_Skill_Active;
+int Texture_Skill_5;
+int Texture_Skill_Circle;
+int Texture_Skill_Spray;
+int Texture_Skill_Shotgun;
+int Texture_Skill_None;
 
 #define M_PIMALDAUMEN 3.14159265358979323846
 
@@ -583,33 +606,212 @@ void SpawnProjectile(int map,double x,double y, double angle, int type, double s
     }
 }
 
+void KnightAttacksPoint(int hero,int x,int y) {
+    (void)hero; // to get rid of the "unused variable" message
+    (void)x;
+    (void)y;
+    // not supported right now
+}
+
 void KnightAttacksMonster(int hero,int monster) {
     MonsterGetsFlatDamage(hero,monster,120);
-    heroes[hero].attackCycle = 12;
+    heroes[hero].attackCycle = 0;
+    heroes[hero].attacking = 1;
+    heroes[hero].walking = 0;
+    heroes[hero].skilling = 0;
+}
+
+void MageAttacksPoint(int hero,int x,int y) {
+    if (heroes[hero].mana >= 10) {
+        SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,LookAt(heroes[hero].x,heroes[hero].y,x,y),PROJECTILE_Arcane,10);
+        heroes[hero].mana -= 10;
+        heroes[hero].attackCycle = 0;
+        heroes[hero].attacking = 1;
+        heroes[hero].walking = 0;
+        heroes[hero].skilling = 0;
+    }
 }
 
 void MageAttacksMonster(int hero,int monster) {
-    (void)monster; // to get rid of the "unused variable" message
     if (heroes[hero].mana >= 10) {
-        SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle,PROJECTILE_Arcane,10);
+        SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,LookAt(heroes[hero].x,heroes[hero].y,mapdata[heroes[hero].map].monsterX[monster],mapdata[heroes[hero].map].monsterY[monster]),PROJECTILE_Arcane,10);
         heroes[hero].mana -= 10;
+        heroes[hero].attackCycle = 0;
+        heroes[hero].attacking = 1;
+        heroes[hero].walking = 0;
+        heroes[hero].skilling = 0;
     }
-    heroes[hero].attackCycle = 30;
+}
+
+void ArcherAttacksPoint(int hero,int x,int y) {
+    SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,LookAt(heroes[hero].x,heroes[hero].y,x,y),PROJECTILE_Arrow,20);
+    heroes[hero].attackCycle = 0;
+    heroes[hero].attacking = 1;
+    heroes[hero].walking = 0;
+    heroes[hero].skilling = 0;
 }
 
 void ArcherAttacksMonster(int hero,int monster) {
-    (void)monster; // to get rid of the "unused variable" message
-    SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle,PROJECTILE_Arrow,20);
-    heroes[hero].attackCycle = 30;
+    SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,LookAt(heroes[hero].x,heroes[hero].y,mapdata[heroes[hero].map].monsterX[monster],mapdata[heroes[hero].map].monsterY[monster]),PROJECTILE_Arrow,20);
+    heroes[hero].attackCycle = 0;
+    heroes[hero].attacking = 1;
+    heroes[hero].walking = 0;
+    heroes[hero].skilling = 0;
+}
+    
+void HeroAttacksPoint(int hero,int x,int y) {
+    if (heroes[hero].map > -1) {
+        if (heroes[hero].health > 0) {
+            if (heroes[hero].attacking == 0) {
+                if (heroes[hero].skilling == 0) {
+                    heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,x,y);
+                    if (heroes[hero].class == CLASS_Knight) KnightAttacksPoint(hero,x,y);
+                    if (heroes[hero].class == CLASS_Mage)   MageAttacksPoint(hero,x,y);
+                    if (heroes[hero].class == CLASS_Archer) ArcherAttacksPoint(hero,x,y);
+                }
+            }
+        }
+    }
 }
     
 void HeroAttacksMonster(int hero,int monster) {
     if (heroes[hero].map > -1) {
         if (heroes[hero].health > 0) {
-            if (heroes[hero].attackCycle == 0) {
-                if (heroes[hero].class == CLASS_Knight) KnightAttacksMonster(hero,monster);
-                if (heroes[hero].class == CLASS_Mage)   MageAttacksMonster(hero,monster);
-                if (heroes[hero].class == CLASS_Archer) ArcherAttacksMonster(hero,monster);
+            if (heroes[hero].attacking == 0) {
+                if (heroes[hero].skilling == 0) {
+                    heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,mapdata[heroes[hero].map].monsterX[monster],mapdata[heroes[hero].map].monsterY[monster]);
+                    if (heroes[hero].class == CLASS_Knight) KnightAttacksMonster(hero,monster);
+                    if (heroes[hero].class == CLASS_Mage)   MageAttacksMonster(hero,monster);
+                    if (heroes[hero].class == CLASS_Archer) ArcherAttacksMonster(hero,monster);
+                }
+            }
+        }
+    }
+}
+
+void HeroAttackDemon(int hero) {
+    heroes[hero].attackCycle++;
+    if (heroes[hero].class == CLASS_Knight) {
+        if (heroes[hero].attackCycle >= 12) {
+            heroes[hero].attackCycle = 0;
+            heroes[hero].attacking = 0;
+        }
+    }
+    if (heroes[hero].class == CLASS_Mage) {
+        if (heroes[hero].attackCycle >= 30) {
+            heroes[hero].attackCycle = 0;
+            heroes[hero].attacking = 0;
+        }
+    }
+    if (heroes[hero].class == CLASS_Archer) {
+        if (heroes[hero].attackCycle >= 30) {
+            heroes[hero].attackCycle = 0;
+            heroes[hero].attacking = 0;
+        }
+    }
+}
+
+#define SKILL_nil 0
+#define SKILL_Archer_Penta 1
+#define SKILL_Archer_Circle 2
+#define SKILL_Archer_Spray 3
+#define SKILL_Archer_Shotgun 4
+#define SKILL_Mage_Penta 5
+#define SKILL_Mage_Circle 6
+#define SKILL_Mage_Spray 7
+#define SKILL_Mage_Shotgun 8
+
+int SkillManaCost(int skill) {
+    if (skill == SKILL_Archer_Penta) return 10;
+    if (skill == SKILL_Archer_Circle) return 50;
+    if (skill == SKILL_Archer_Spray) return 2;
+    if (skill == SKILL_Archer_Shotgun) return 100;
+    if (skill == SKILL_Mage_Penta) return 10;
+    if (skill == SKILL_Mage_Circle) return 50;
+    if (skill == SKILL_Mage_Spray) return 2;
+    if (skill == SKILL_Mage_Shotgun) return 100;
+    return 0;
+}
+
+int SkillTime(int skill) {
+    if (skill == SKILL_Archer_Penta) return 30;
+    if (skill == SKILL_Archer_Circle) return 60;
+    if (skill == SKILL_Archer_Spray) return 1;
+    if (skill == SKILL_Archer_Shotgun) return 60;
+    if (skill == SKILL_Mage_Penta) return 30;
+    if (skill == SKILL_Mage_Circle) return 60;
+    if (skill == SKILL_Mage_Spray) return 1;
+    if (skill == SKILL_Mage_Shotgun) return 60;
+    return 0;
+}
+
+void HeroUseSkill(int hero,int skill) {
+    if (skill != 0) {
+        if (heroes[hero].attacking == 0) {
+            if (heroes[hero].skilling == 0) {
+                if (heroes[hero].health > 0) {
+                    if (heroes[hero].mana >= SkillManaCost(skill)) {
+                        heroes[hero].walking = 0;
+                        heroes[hero].walkCycle = 0;
+                        heroes[hero].skill = skill;
+                        heroes[hero].skilling = 1;
+                        heroes[hero].skillCycle = 0;
+                        heroes[hero].mana -= SkillManaCost(skill);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void HeroSkillDemon(int hero) {
+    if (heroes[hero].health > 0) {
+        if (heroes[hero].skilling == 1) {
+            if (heroes[hero].skill == SKILL_Archer_Penta) {
+                if (heroes[hero].skillCycle == 0) {
+                    for (int i=-20; i<=20; i+=10) SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle+i,PROJECTILE_Arrow,20);
+                }
+            }
+            if (heroes[hero].skill == SKILL_Archer_Circle) {
+                if (heroes[hero].skillCycle == 0) {
+                    for (int i=0; i<=350; i+=10) SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle+i,PROJECTILE_Arrow,20);
+                }
+            }
+            if (heroes[hero].skill == SKILL_Archer_Spray) {
+                if (heroes[hero].skillCycle == 0) {
+                    SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle+(((rand()&2000)/100)-10),PROJECTILE_Arrow,20);
+                }
+            }
+            if (heroes[hero].skill == SKILL_Archer_Shotgun) {
+                if (heroes[hero].skillCycle == 0) {
+                    for (int i=-24; i<=24; i+=1) SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle+i,PROJECTILE_Arrow,20);
+                }
+            }
+            if (heroes[hero].skill == SKILL_Mage_Penta) {
+                if (heroes[hero].skillCycle == 0) {
+                    for (int i=-20; i<=20; i+=10) SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle+i,PROJECTILE_Arcane,10);
+                }
+            }
+            if (heroes[hero].skill == SKILL_Mage_Circle) {
+                if (heroes[hero].skillCycle == 0) {
+                    for (int i=0; i<=350; i+=10) SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle+i,PROJECTILE_Arcane,10);
+                }
+            }
+            if (heroes[hero].skill == SKILL_Mage_Spray) {
+                    SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle+(((rand()&2000)/100)-10),PROJECTILE_Arcane,10);
+                if (heroes[hero].skillCycle == 0) {
+                }
+            }
+            if (heroes[hero].skill == SKILL_Mage_Shotgun) {
+                if (heroes[hero].skillCycle == 0) {
+                    for (int i=-24; i<=24; i+=1) SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle+i,PROJECTILE_Arcane,10);
+                }
+            }
+            heroes[hero].skillCycle++;
+            if (heroes[hero].skillCycle >= SkillTime(heroes[hero].skill)) {
+                heroes[hero].skill = 0;
+                heroes[hero].skilling = 0;
+                heroes[hero].skillCycle = 0;
             }
         }
     }
@@ -619,9 +821,10 @@ void HeroDeamon(int hero) {
     int attackDistance;
     if (heroes[hero].isHero!=0) {
         
-        if (heroes[hero].attackCycle > 0) heroes[hero].attackCycle--;
+        HeroAttackDemon(hero);
+        HeroSkillDemon(hero);
         
-        if ( heroes[hero].attack == 0) {
+        if ( heroes[hero].attacking == 0) {
             
             if ( heroes[hero].autopilot != 0) {
                 if ( heroes[hero].waypoint < heroes[hero].waypoints) {
@@ -664,8 +867,8 @@ void HeroDeamon(int hero) {
                         heroes[hero].xTarget = mapdata[heroes[hero].map].monsterX[monster];
                         heroes[hero].yTarget = mapdata[heroes[hero].map].monsterY[monster];
                         heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,heroes[hero].xTarget,heroes[hero].yTarget);
-                        HeroAttacksMonster(hero,monster);
                         heroes[hero].walking = 0;
+                        HeroAttacksMonster(hero,monster);
                     }
                 }
             }
@@ -722,7 +925,7 @@ void DrawMonster(int monster, int map) {
     if (mapdata[map].monsterExist[monster] != 0) {
         if (mapdata[map].monsterAlive[monster] != 0) {
             if (mapdata[map].monsterType[monster] == MONSTER_HUMAN) {
-                DrawImageRotatedScaled(monsterHuman,960+mapdata[map].monsterX[monster]-heroes[mapdata[map].hero].x,540+mapdata[map].monsterY[monster]-heroes[mapdata[map].hero].y,0,0.5f);
+                DrawImageRotatedScaled(Texture_monsterHuman,960+mapdata[map].monsterX[monster]-heroes[mapdata[map].hero].x,540+mapdata[map].monsterY[monster]-heroes[mapdata[map].hero].y,0,0.5f);
             }
             double life = mapdata[map].monsterHealth[monster];
             life /= (double)mapdata[map].monsterHealthMax[monster];
@@ -743,8 +946,8 @@ void DrawProjectiles(int map) {
     for (int i=0; i<MAX_PROJECTILES; i++) {
         if (projectiles[i].valid != 0) {
             if (projectiles[i].map == map) {
-                if (projectiles[i].type == PROJECTILE_Arrow) DrawImageRotatedScaled(Arrow,960+projectiles[i].x-heroes[hero].x,540+projectiles[i].y-heroes[hero].y,projectiles[i].angle,0.5f);
-                if (projectiles[i].type == PROJECTILE_Arcane) DrawImageRotatedScaled(ArcArrow,960+projectiles[i].x-heroes[hero].x,540+projectiles[i].y-heroes[hero].y,projectiles[i].angle,0.5f);
+                if (projectiles[i].type == PROJECTILE_Arrow) DrawImageRotatedScaled(Texture_Arrow,960+projectiles[i].x-heroes[hero].x,540+projectiles[i].y-heroes[hero].y,projectiles[i].angle,0.5f);
+                if (projectiles[i].type == PROJECTILE_Arcane) DrawImageRotatedScaled(Texture_ArcArrow,960+projectiles[i].x-heroes[hero].x,540+projectiles[i].y-heroes[hero].y,projectiles[i].angle,0.5f);
             }
         }
     }
@@ -785,17 +988,71 @@ void DrawValueFromValue(double x,double y,double scale,int value, int maxValue) 
     }
 }
 
+int SkillTexture(int skill) {
+    if (skill == SKILL_Archer_Penta) return Texture_Skill_5;
+    if (skill == SKILL_Archer_Circle) return Texture_Skill_Circle;
+    if (skill == SKILL_Archer_Spray) return Texture_Skill_Spray;
+    if (skill == SKILL_Archer_Shotgun) return Texture_Skill_Shotgun;
+    if (skill == SKILL_Mage_Penta) return Texture_Skill_5;
+    if (skill == SKILL_Mage_Circle) return Texture_Skill_Circle;
+    if (skill == SKILL_Mage_Spray) return Texture_Skill_Spray;
+    if (skill == SKILL_Mage_Shotgun) return Texture_Skill_Shotgun;
+    return Texture_Skill_None;
+}
+
 void DrawHeroGUI(int hero) {
+    int pos_x1;
+    int pos_x2;
+    int pos_x3;
+    int pos_x4;
+    int pox_y;
+    int size;
+        
     if (heroes[hero].autopilotEnabled != 0) {
         DrawImageScaled(AutopilotOnIcon,1820,20,80,80);
     } else {
         DrawImageScaled(AutopilotOffIcon,1820,20,80,80);
     }
+    
     if (manageMode == 0) {
         DrawImageScaled(ManagedModeIcon,1720,20,80,80);
     }
-    DrawImageScaled(BarTexture,20,20,320,150);
     
+    if (manageMode == 0) {
+        pos_x1 = 775;
+        pos_x2 = 870;
+        pos_x3 = 970;
+        pos_x4 = 1065;
+        pox_y = 980;
+        size = 80;
+    } else {
+        pos_x1 = 590;
+        pos_x2 = 780;
+        pos_x3 = 980;
+        pos_x4 = 1170;
+        pox_y = 900;
+        size = 160;
+    }
+    DrawImageScaled(Texture_Skill_BG,pos_x1,pox_y,size,size);
+    DrawImageScaled(Texture_Skill_BG,pos_x2,pox_y,size,size);
+    DrawImageScaled(Texture_Skill_BG,pos_x3,pox_y,size,size);
+    DrawImageScaled(Texture_Skill_BG,pos_x4,pox_y,size,size);
+    DrawImageScaled(SkillTexture(heroes[hero].skillSlots[0]),pos_x1,pox_y,size,size);
+    DrawImageScaled(SkillTexture(heroes[hero].skillSlots[1]),pos_x2,pox_y,size,size);
+    DrawImageScaled(SkillTexture(heroes[hero].skillSlots[2]),pos_x3,pox_y,size,size);
+    DrawImageScaled(SkillTexture(heroes[hero].skillSlots[3]),pos_x4,pox_y,size,size);
+    if (heroes[hero].skill != 0) {
+        if (heroes[hero].skill == heroes[hero].skillSlots[0]) DrawImageScaled(Texture_Skill_Active,pos_x1,pox_y,size,size);
+        if (heroes[hero].skill == heroes[hero].skillSlots[1]) DrawImageScaled(Texture_Skill_Active,pos_x2,pox_y,size,size);
+        if (heroes[hero].skill == heroes[hero].skillSlots[2]) DrawImageScaled(Texture_Skill_Active,pos_x3,pox_y,size,size);
+        if (heroes[hero].skill == heroes[hero].skillSlots[3]) DrawImageScaled(Texture_Skill_Active,pos_x4,pox_y,size,size);
+    }
+    DrawImageScaled(Texture_Skill_Q,pos_x1,pox_y,size,size);
+    DrawImageScaled(Texture_Skill_W,pos_x2,pox_y,size,size);
+    DrawImageScaled(Texture_Skill_E,pos_x3,pox_y,size,size);
+    DrawImageScaled(Texture_Skill_R,pos_x4,pox_y,size,size);
+    
+    DrawImageScaled(BarTexture,20,20,320,150);
     double life = heroes[hero].health;
     life /= (double)heroes[hero].healthMax;
     double mana = heroes[hero].mana;
@@ -807,7 +1064,7 @@ void DrawHeroGUI(int hero) {
 }
 
 void DrawHeroWings(int hero) {
-    if (heroes[hero].attack==0) {
+    if (heroes[hero].walking!=0) {
         
         // Left Wing
         double x = -20;
@@ -816,7 +1073,7 @@ void DrawHeroWings(int hero) {
         double a = heroes[hero].angle-sin(heroes[hero].walkCycle/10)*10;
         
         rotate_point(&x,&y,heroes[hero].angle);
-        DrawImageRotatedScaled(leftWing1,960+x,540+y,a,0.5f);
+        DrawImageRotatedScaled(Texture_leftWing1,960+x,540+y,a,0.5f);
         
         // Right Wing
         x = 20;
@@ -825,12 +1082,34 @@ void DrawHeroWings(int hero) {
         a = heroes[hero].angle+sin(heroes[hero].walkCycle/10)*10;
         
         rotate_point(&x,&y,heroes[hero].angle);
-        DrawImageRotatedScaled(rightWing1,960+x,540+y,a,0.5f);
+        DrawImageRotatedScaled(Texture_rightWing1,960+x,540+y,a,0.5f);
+    }
+    if (heroes[hero].walking==0) {
+        
+        // Left Wing
+        double x = -20;
+        double y = 40;
+        
+        double a = heroes[hero].angle;
+        
+        rotate_point(&x,&y,a);
+        DrawImageRotatedScaled(Texture_leftWing1,960+x,540+y,a,0.5f);
+        
+        // Right Wing
+        x = 20;
+        y = 40;
+        
+        a = heroes[hero].angle;
+        
+        rotate_point(&x,&y,a);
+        DrawImageRotatedScaled(Texture_rightWing1,960+x,540+y,a,0.5f);
     }
 }
 
 void DrawHeroHands(int hero) {
-    if (heroes[hero].attack==0) {
+    int standing = 1;
+    if (heroes[hero].walking!=0) {
+        standing = 0;
         
         // Left Hand
         double x = -40;
@@ -841,7 +1120,7 @@ void DrawHeroHands(int hero) {
         double a = heroes[hero].angle-sin(heroes[hero].walkCycle/10)*10;
         
         rotate_point(&x,&y,heroes[hero].angle);
-        DrawImageRotatedScaled(leftHand,960+x,540+y,a,0.5f);
+        DrawImageRotatedScaled(Texture_leftHand,960+x,540+y,a,0.5f);
         
         // Right Hand
         x = 40;
@@ -852,10 +1131,39 @@ void DrawHeroHands(int hero) {
         a = heroes[hero].angle-sin(heroes[hero].walkCycle/10)*10;
         
         rotate_point(&x,&y,heroes[hero].angle);
-        if (heroes[hero].class == CLASS_Knight) DrawImageRotatedScaled(Sword,960+x,540+y,a,0.5f);
-        if (heroes[hero].class == CLASS_Mage) DrawImageRotatedScaled(Staff,960+x,540+y,a,0.5f);
-        if (heroes[hero].class == CLASS_Archer) DrawImageRotatedScaled(Bow,960+x,540+y,a,0.5f);
-        DrawImageRotatedScaled(rightHand,960+x,540+y,a,0.5f);
+        if (heroes[hero].class == CLASS_Knight) DrawImageRotatedScaled(Texture_Sword,960+x,540+y,a,0.5f);
+        if (heroes[hero].class == CLASS_Mage) DrawImageRotatedScaled(Texture_Staff,960+x,540+y,a,0.5f);
+        if (heroes[hero].class == CLASS_Archer) DrawImageRotatedScaled(Texture_Bow,960+x,540+y,a,0.5f);
+        DrawImageRotatedScaled(Texture_rightHand,960+x,540+y,a,0.5f);
+    }
+    if (heroes[hero].attacking!=0) {
+        // standing = 0;
+        // placeholder "standing" right now
+    }
+    if (heroes[hero].skilling!=0) {
+        // standing = 0;
+        // placeholder "standing" right now
+    }
+    if (standing!=0) {
+        
+        // Left Hand
+        double x = -40;
+        double y = 0;
+        double a = heroes[hero].angle;
+        
+        rotate_point(&x,&y,a);
+        DrawImageRotatedScaled(Texture_leftHand,960+x,540+y,a,0.5f);
+        
+        // Right Hand
+        x = 40;
+        y = 0;
+        a = heroes[hero].angle;
+        
+        rotate_point(&x,&y,a);
+        if (heroes[hero].class == CLASS_Knight) DrawImageRotatedScaled(Texture_Sword,960+x,540+y,a,0.5f);
+        if (heroes[hero].class == CLASS_Mage) DrawImageRotatedScaled(Texture_Staff,960+x,540+y,a,0.5f);
+        if (heroes[hero].class == CLASS_Archer) DrawImageRotatedScaled(Texture_Bow,960+x,540+y,a,0.5f);
+        DrawImageRotatedScaled(Texture_rightHand,960+x,540+y,a,0.5f);
     }
 }
 
@@ -867,7 +1175,7 @@ void DrawHero(int canvas, int hero) {
             DrawImageScaled(TargetIcon,960+heroes[hero].xTarget-heroes[hero].x-32,540+heroes[hero].yTarget-heroes[hero].y-32,64,64);
         }
     }
-    DrawImageRotatedScaled(head,960,540,heroes[hero].angle,0.5f);
+    DrawImageRotatedScaled(Texture_head,960,540,heroes[hero].angle,0.5f);
     DrawHeroHands(hero);
     DrawHeroWings(hero);
     DrawMonsters(heroes[hero].map);
@@ -903,22 +1211,7 @@ void HeroLeftClickCallback(int hero, int x, int y) {
 
 void HeroRightClickCallback(int hero, int x, int y) {
     // right now only for debug and "fun to play"
-    heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,x,y);
-    if (heroes[hero].class == CLASS_Mage) {
-        if (heroes[hero].attackCycle == 0) {
-            if (heroes[hero].mana >= 10) {
-                SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle,PROJECTILE_Arcane,10);
-                heroes[hero].mana -= 10;
-            }
-            heroes[hero].attackCycle = 30;
-        }
-    }
-    if (heroes[hero].class == CLASS_Archer) {
-        if (heroes[hero].attackCycle == 0) {
-            SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle,PROJECTILE_Arrow,20);
-            heroes[hero].attackCycle = 30;
-        }
-    }
+    HeroAttacksPoint(hero,x,y);
 }
 
 void HeroClickCallback(int hero, int x, int y) {
@@ -1066,42 +1359,42 @@ void GameMain(void) {
     
     // weapons
     
-    Sword = LoadImage("assets/sword.png");
-    if (Sword==0) return;
+    Texture_Sword = LoadImage("assets/sword.png");
+    if (Texture_Sword==0) return;
     
-    Staff = LoadImage("assets/staff.png");
-    if (Staff==0) return;
+    Texture_Staff = LoadImage("assets/staff.png");
+    if (Texture_Staff==0) return;
     
-    Bow = LoadImage("assets/bow.png");
-    if (Bow==0) return;
+    Texture_Bow = LoadImage("assets/bow.png");
+    if (Texture_Bow==0) return;
     
-    Arrow = LoadImage("assets/arrow.png");
-    if (Arrow==0) return;
+    Texture_Arrow = LoadImage("assets/arrow.png");
+    if (Texture_Arrow==0) return;
     
-    ArcArrow = LoadImage("assets/arc_arrow.png");
-    if (ArcArrow==0) return;
+    Texture_ArcArrow = LoadImage("assets/arc_arrow.png");
+    if (Texture_ArcArrow==0) return;
     
     // heros
     
-    head = LoadImage("assets/head.png");
-    if (head==0) return;
+    Texture_head = LoadImage("assets/head.png");
+    if (Texture_head==0) return;
     
-    leftHand = LoadImage("assets/handL.png");
-    if (leftHand==0) return;
+    Texture_leftHand = LoadImage("assets/handL.png");
+    if (Texture_leftHand==0) return;
     
-    rightHand = LoadImage("assets/handR.png");
-    if (rightHand==0) return;
+    Texture_rightHand = LoadImage("assets/handR.png");
+    if (Texture_rightHand==0) return;
     
-    leftWing1 = LoadImage("assets/LeftWing1.png");
-    if (leftWing1==0) return;
+    Texture_leftWing1 = LoadImage("assets/LeftWing1.png");
+    if (Texture_leftWing1==0) return;
     
-    rightWing1 = LoadImage("assets/RightWing1.png");
-    if (rightWing1==0) return;
+    Texture_rightWing1 = LoadImage("assets/RightWing1.png");
+    if (Texture_rightWing1==0) return;
     
     // monsters
     
-    monsterHuman = LoadImage("assets/monsters/human.png");
-    if (monsterHuman==0) return;
+    Texture_monsterHuman = LoadImage("assets/monsters/human.png");
+    if (Texture_monsterHuman==0) return;
     
     // GUI
     
@@ -1138,6 +1431,40 @@ void GameMain(void) {
     FullscreenIcon = LoadImage("assets/fullscreen.png");
     if (FullscreenIcon==0) return;
     
+    // Skills
+    
+    Texture_Skill_Q = LoadImage("assets/skill_Q.png");
+    if (Texture_Skill_Q==0) return;
+    
+    Texture_Skill_W = LoadImage("assets/skill_W.png");
+    if (Texture_Skill_W==0) return;
+    
+    Texture_Skill_E = LoadImage("assets/skill_E.png");
+    if (Texture_Skill_E==0) return;
+    
+    Texture_Skill_R = LoadImage("assets/skill_R.png");
+    if (Texture_Skill_R==0) return;
+    
+    Texture_Skill_5 = LoadImage("assets/skill_5.png");
+    if (Texture_Skill_5==0) return;
+    
+    Texture_Skill_BG = LoadImage("assets/skill_BG.png");
+    if (Texture_Skill_BG==0) return;
+    
+    Texture_Skill_Active = LoadImage("assets/skill_active.png");
+    if (Texture_Skill_Active==0) return;
+    
+    Texture_Skill_Spray = LoadImage("assets/skill_spray.png");
+    if (Texture_Skill_Spray==0) return;
+    
+    Texture_Skill_Circle = LoadImage("assets/skill_circle.png");
+    if (Texture_Skill_Circle==0) return;
+    
+    Texture_Skill_Shotgun = LoadImage("assets/skill_shotgun.png");
+    if (Texture_Skill_Shotgun==0) return;
+    
+    Texture_Skill_None = LoadImage("assets/skill_None.png");
+    if (Texture_Skill_None==0) return;
     
     
     if (LoadFont() == 0) return;
@@ -1166,12 +1493,20 @@ void GameMain(void) {
     heroes[2].autopilotEnabled = 1;
     heroes[2].healthMax = 10000;
     heroes[2].manaMax = 1000;
+    heroes[2].skillSlots[0] = 1;
+    heroes[2].skillSlots[1] = 2;
+    heroes[2].skillSlots[2] = 3;
+    heroes[2].skillSlots[3] = 4;
     heroes[3].isHero = 1;
     heroes[3].class = CLASS_Mage;
     heroes[3].speed = 10;
     heroes[3].autopilotEnabled = 1;
     heroes[3].healthMax = 10000;
     heroes[3].manaMax = 1000;
+    heroes[3].skillSlots[0] = 5;
+    heroes[3].skillSlots[1] = 6;
+    heroes[3].skillSlots[2] = 7;
+    heroes[3].skillSlots[3] = 8;
     
     heroes[4].isHero = 1;
     heroes[4].class = CLASS_Knight;
@@ -1247,25 +1582,31 @@ void GameMain(void) {
             manageMode = 0;
         }
         if (key=='6') {
-            heroes[0].class = CLASS_Knight;
-            heroes[1].class = CLASS_Knight;
-            heroes[2].class = CLASS_Knight;
-            heroes[3].class = CLASS_Knight;
-            heroes[4].class = CLASS_Knight;
+            for (int i=0; i<5; i++) {
+                heroes[i].class = CLASS_Knight;
+                heroes[i].skillSlots[0] = 0;
+                heroes[i].skillSlots[1] = 0;
+                heroes[i].skillSlots[2] = 0;
+                heroes[i].skillSlots[3] = 0;
+            }
         }
         if (key=='7') {
-            heroes[0].class = CLASS_Mage;
-            heroes[1].class = CLASS_Mage;
-            heroes[2].class = CLASS_Mage;
-            heroes[3].class = CLASS_Mage;
-            heroes[4].class = CLASS_Mage;
+            for (int i=0; i<5; i++) {
+                heroes[i].class = CLASS_Archer;
+                heroes[i].skillSlots[0] = 1;
+                heroes[i].skillSlots[1] = 2;
+                heroes[i].skillSlots[2] = 3;
+                heroes[i].skillSlots[3] = 4;
+            }
         }
         if (key=='8') {
-            heroes[0].class = CLASS_Archer;
-            heroes[1].class = CLASS_Archer;
-            heroes[2].class = CLASS_Archer;
-            heroes[3].class = CLASS_Archer;
-            heroes[4].class = CLASS_Archer;
+            for (int i=0; i<5; i++) {
+                heroes[i].class = CLASS_Mage;
+                heroes[i].skillSlots[0] = 5;
+                heroes[i].skillSlots[1] = 6;
+                heroes[i].skillSlots[2] = 7;
+                heroes[i].skillSlots[3] = 8;
+            }
         }
         if (key=='9') {
             manageMode = 1;
@@ -1279,73 +1620,29 @@ void GameMain(void) {
         }
         if (key=='q') {
             if (manageMode == 0) {
-                if (heroes[ActiveHero].attackCycle == 0) {
-                    if (heroes[ActiveHero].mana >= 40) {
-                        if (heroes[ActiveHero].class == CLASS_Mage) {
-                            for (int i=-20; i<=20; i+=10) SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+i,PROJECTILE_Arcane,10);
-                            heroes[ActiveHero].attackCycle = 30;
-                            heroes[ActiveHero].mana -= 40;
-                        }
-                        if (heroes[ActiveHero].class == CLASS_Archer) {
-                            for (int i=-20; i<=20; i+=10) SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+i,PROJECTILE_Arrow,20);
-                            heroes[ActiveHero].attackCycle = 30;
-                            heroes[ActiveHero].mana -= 40;
-                        }
-                    }
+                if (heroes[ActiveHero].autopilotEnabled == 0) {
+                    HeroUseSkill(ActiveHero,heroes[ActiveHero].skillSlots[0]);
                 }
             }
         }
         if (key=='w') {
             if (manageMode == 0) {
-                if (heroes[ActiveHero].attackCycle == 0) {
-                    if (heroes[ActiveHero].mana >= 500) {
-                        if (heroes[ActiveHero].class == CLASS_Mage) {
-                            for (int i=0; i<=350; i+=10) SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+i,PROJECTILE_Arcane,10);
-                            heroes[ActiveHero].attackCycle = 60;
-                            heroes[ActiveHero].mana -= 500;
-                        }
-                        if (heroes[ActiveHero].class == CLASS_Archer) {
-                            for (int i=0; i<=350; i+=10) SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+i,PROJECTILE_Arrow,20);
-                            heroes[ActiveHero].attackCycle = 60;
-                            heroes[ActiveHero].mana -= 500;
-                        }
-                    }
+                if (heroes[ActiveHero].autopilotEnabled == 0) {
+                    HeroUseSkill(ActiveHero,heroes[ActiveHero].skillSlots[1]);
                 }
             }
         }
         if (key=='e') {
             if (manageMode == 0) {
-                if (heroes[ActiveHero].attackCycle == 0) {
-                    if (heroes[ActiveHero].mana >= 10) {
-                        if (heroes[ActiveHero].class == CLASS_Mage) {
-                            SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+(((rand()&2000)/100)-10),PROJECTILE_Arcane,10);
-                            heroes[ActiveHero].attackCycle = 1;
-                            heroes[ActiveHero].mana -= 10;
-                        }
-                        if (heroes[ActiveHero].class == CLASS_Archer) {
-                            SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+(((rand()&2000)/100)-10),PROJECTILE_Arrow,20);
-                            heroes[ActiveHero].attackCycle = 1;
-                            heroes[ActiveHero].mana -= 10;
-                        }
-                    }
+                if (heroes[ActiveHero].autopilotEnabled == 0) {
+                    HeroUseSkill(ActiveHero,heroes[ActiveHero].skillSlots[2]);
                 }
             }
         }
         if (key=='r') {
             if (manageMode == 0) {
-                if (heroes[ActiveHero].attackCycle == 0) {
-                    if (heroes[ActiveHero].mana >= 500) {
-                        if (heroes[ActiveHero].class == CLASS_Mage) {
-                            for (int i=-24; i<=24; i+=1) SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+i,PROJECTILE_Arcane,10);
-                            heroes[ActiveHero].attackCycle = 60;
-                            heroes[ActiveHero].mana -= 500;
-                        }
-                        if (heroes[ActiveHero].class == CLASS_Archer) {
-                            for (int i=-24; i<=24; i+=1) SpawnProjectile(heroes[ActiveHero].map,heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].angle+i,PROJECTILE_Arrow,20);
-                            heroes[ActiveHero].attackCycle = 60;
-                            heroes[ActiveHero].mana -= 500;
-                        }
-                    }
+                if (heroes[ActiveHero].autopilotEnabled == 0) {
+                    HeroUseSkill(ActiveHero,heroes[ActiveHero].skillSlots[3]);
                 }
             }
         }
@@ -1390,7 +1687,11 @@ void GameMain(void) {
         }
         
         if (manageMode == 0) {
-            heroes[ActiveHero].angle = LookAt(heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].x + (mouseX_-960),heroes[ActiveHero].y + (mouseY_-540));
+            if (heroes[ActiveHero].attacking == 0) {
+                if (heroes[ActiveHero].skilling == 0) {
+                    heroes[ActiveHero].angle = LookAt(heroes[ActiveHero].x,heroes[ActiveHero].y,heroes[ActiveHero].x + (mouseX_-960),heroes[ActiveHero].y + (mouseY_-540));
+                }
+            }
         }
 
         FlipBuffers();
