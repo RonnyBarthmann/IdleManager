@@ -942,90 +942,93 @@ void HeroDeamon(int hero) {
     int attackDistance;
     if (heroes[hero].isHero!=0) {
         
-        HeroAttackDemon(hero);
-        HeroSkillDemon(hero);
+        if ( heroes[hero].health > 0) {
         
-        if ( heroes[hero].attacking == 0) {
+            HeroAttackDemon(hero);
+            HeroSkillDemon(hero);
             
-            if ( heroes[hero].autopilot != 0) {
-                if ( heroes[hero].waypoint < heroes[hero].waypoints) {
-                    if (CheckHeroAtWaypoint(hero,heroes[hero].waypoint) == 1) {
-                        if ( heroes[hero].waypoint < heroes[hero].waypoints-1) {
-                            heroes[hero].waypoint++;
-                        } else {
-                            heroes[hero].autopilot = 0;
+            if ( heroes[hero].attacking == 0) {
+                
+                if ( heroes[hero].autopilot != 0) {
+                    if ( heroes[hero].waypoint < heroes[hero].waypoints) {
+                        if (CheckHeroAtWaypoint(hero,heroes[hero].waypoint) == 1) {
+                            if ( heroes[hero].waypoint < heroes[hero].waypoints-1) {
+                                heroes[hero].waypoint++;
+                            } else {
+                                heroes[hero].autopilot = 0;
+                            }
                         }
                     }
                 }
-            }
-            if ( heroes[hero].autopilot != 0) {
-                heroes[hero].xTarget = heroWaypoints[hero][heroes[hero].waypoint].x;
-                heroes[hero].yTarget = heroWaypoints[hero][heroes[hero].waypoint].y;
-            }
-            
-            heroes[hero].walking = HeroHasTarget(hero,10);
-            
-            if ( heroes[hero].autopilotEnabled != 0) {
-                if (IsAnyMonsterNearHero(hero,500) != 0) {
-                    int monster = HeroNearestMonster(hero);
-                    if (monster > -1) {
-                        heroes[hero].xTarget = mapdata[heroes[hero].map].monsterX[monster];
-                        heroes[hero].yTarget = mapdata[heroes[hero].map].monsterY[monster];
-                        heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,heroes[hero].xTarget,heroes[hero].yTarget);
-                        heroes[hero].walking = 1;
+                if ( heroes[hero].autopilot != 0) {
+                    heroes[hero].xTarget = heroWaypoints[hero][heroes[hero].waypoint].x;
+                    heroes[hero].yTarget = heroWaypoints[hero][heroes[hero].waypoint].y;
+                }
+                
+                heroes[hero].walking = HeroHasTarget(hero,10);
+                
+                if ( heroes[hero].autopilotEnabled != 0) {
+                    if (IsAnyMonsterNearHero(hero,500) != 0) {
+                        int monster = HeroNearestMonster(hero);
+                        if (monster > -1) {
+                            heroes[hero].xTarget = mapdata[heroes[hero].map].monsterX[monster];
+                            heroes[hero].yTarget = mapdata[heroes[hero].map].monsterY[monster];
+                            heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,heroes[hero].xTarget,heroes[hero].yTarget);
+                            heroes[hero].walking = 1;
+                        }
                     }
                 }
-            }
-            
-            if ( heroes[hero].autopilotEnabled != 0) {
-                attackDistance = 20;
-                if (heroes[hero].class == CLASS_Knight) attackDistance = 20;
-                if (heroes[hero].class == CLASS_Mage) attackDistance = 500;
-                if (heroes[hero].class == CLASS_Archer) attackDistance = 500;
-                if (IsAnyMonsterNearHero(hero,attackDistance) != 0) {
-                    int monster = HeroNearestMonster(hero);
-                    if (monster > -1) {
-                        heroes[hero].xTarget = mapdata[heroes[hero].map].monsterX[monster];
-                        heroes[hero].yTarget = mapdata[heroes[hero].map].monsterY[monster];
-                        heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,heroes[hero].xTarget,heroes[hero].yTarget);
-                        heroes[hero].walking = 0;
-                        HeroAttacksMonster(hero,monster);
+                
+                if ( heroes[hero].autopilotEnabled != 0) {
+                    attackDistance = 20;
+                    if (heroes[hero].class == CLASS_Knight) attackDistance = 20;
+                    if (heroes[hero].class == CLASS_Mage) attackDistance = 500;
+                    if (heroes[hero].class == CLASS_Archer) attackDistance = 500;
+                    if (IsAnyMonsterNearHero(hero,attackDistance) != 0) {
+                        int monster = HeroNearestMonster(hero);
+                        if (monster > -1) {
+                            heroes[hero].xTarget = mapdata[heroes[hero].map].monsterX[monster];
+                            heroes[hero].yTarget = mapdata[heroes[hero].map].monsterY[monster];
+                            heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,heroes[hero].xTarget,heroes[hero].yTarget);
+                            heroes[hero].walking = 0;
+                            HeroAttacksMonster(hero,monster);
+                        }
                     }
                 }
-            }
-            
-            if (heroes[hero].walking!=0) {
-                heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,heroes[hero].xTarget,heroes[hero].yTarget);
-                double nextX = heroes[hero].x;
-                double nextY = heroes[hero].y;
-                double speed = ToPointDistance(heroes[hero].x,heroes[hero].y,heroes[hero].xTarget,heroes[hero].yTarget);
-                if (speed > heroes[hero].speed) speed = heroes[hero].speed;
-                nextX += sin(heroes[hero].angle / (180.0 / M_PIMALDAUMEN)) * speed;
-                nextY -= cos(heroes[hero].angle / (180.0 / M_PIMALDAUMEN)) * speed;
-                if (getMapCollisionBoxCenter(nextX,nextY,32) == 0) {
-                    heroes[hero].x = nextX;
-                    heroes[hero].y = nextY;
-                } else if (getMapCollisionBoxCenter(heroes[hero].x,nextY,32) == 0) {
-                    heroes[hero].y = nextY;
-                } else if (getMapCollisionBoxCenter(nextX,heroes[hero].y,32) == 0) {
-                    heroes[hero].x = nextX;
+                
+                if (heroes[hero].walking!=0) {
+                    heroes[hero].angle = LookAt(heroes[hero].x,heroes[hero].y,heroes[hero].xTarget,heroes[hero].yTarget);
+                    double nextX = heroes[hero].x;
+                    double nextY = heroes[hero].y;
+                    double speed = ToPointDistance(heroes[hero].x,heroes[hero].y,heroes[hero].xTarget,heroes[hero].yTarget);
+                    if (speed > heroes[hero].speed) speed = heroes[hero].speed;
+                    nextX += sin(heroes[hero].angle / (180.0 / M_PIMALDAUMEN)) * speed;
+                    nextY -= cos(heroes[hero].angle / (180.0 / M_PIMALDAUMEN)) * speed;
+                    if (getMapCollisionBoxCenter(nextX,nextY,32) == 0) {
+                        heroes[hero].x = nextX;
+                        heroes[hero].y = nextY;
+                    } else if (getMapCollisionBoxCenter(heroes[hero].x,nextY,32) == 0) {
+                        heroes[hero].y = nextY;
+                    } else if (getMapCollisionBoxCenter(nextX,heroes[hero].y,32) == 0) {
+                        heroes[hero].x = nextX;
+                    }
                 }
-            }
-            
-            HeroPotionUseDemon(hero);
-            
-            if (heroes[hero].walking!=0) {
-                heroes[hero].walkCycle++;
-            } else {
-                heroes[hero].walkCycle=0;
-            }
-            
-            if (heroes[hero].mana < heroes[hero].manaMax) {
-                if (engineStep%30 == 0) {
-                    heroes[hero].mana++;
+                
+                HeroPotionUseDemon(hero);
+                
+                if (heroes[hero].walking!=0) {
+                    heroes[hero].walkCycle++;
+                } else {
+                    heroes[hero].walkCycle=0;
                 }
+                
+                if (heroes[hero].mana < heroes[hero].manaMax) {
+                    if (engineStep%30 == 0) {
+                        heroes[hero].mana++;
+                    }
+                }
+                
             }
-            
         }
     }
 }
