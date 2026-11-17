@@ -87,6 +87,8 @@ struct heroClass {
     int skilling; // lol (more "use skill" ... but "walking" and "attacking" and yeah ... you get the point ...)
     double skillCycle;
     int skillSlots[4];
+    int potionSlots[3];
+    int potionState[3];
 };
 
 struct heroClass heroes[MAX_HEROES];
@@ -132,6 +134,12 @@ void ClearHero(int hero) {
     heroes[hero].skillSlots[1] = 0;
     heroes[hero].skillSlots[2] = 0;
     heroes[hero].skillSlots[3] = 0;
+    heroes[hero].potionSlots[0] = 0;
+    heroes[hero].potionSlots[1] = 0;
+    heroes[hero].potionSlots[2] = 0;
+    heroes[hero].potionState[0] = 0;
+    heroes[hero].potionState[1] = 0;
+    heroes[hero].potionState[2] = 0;
     InitWaypointsHero(hero);
 }
 
@@ -145,6 +153,15 @@ void DrawImageScaled(int ImageID, double x, double y, double w, double h) {
 void DrawImageRotatedScaled(int ImageID, double x, double y, double a, double s) {
     DrawImageRotated(ImageID,x*scale,y*scale,a,s*scale);
 }
+void DrawBox_(int x, int y, int w, int h, int c) {
+    for (int y_=y;y_<(x+h);y_++) {
+        for (int x_=x;x_<(x+w);x_++) Plot(x_,y_,c);
+    }
+}
+void DrawBoxScaled(double x, double y, double w, double h, int c) {
+    DrawBox_(x*scale,y*scale,w*scale,h*scale,c);
+}
+    
 
 void InitMapCollision(int tile) {
     if (MapTiles[tile].loaded != 0) {
@@ -262,6 +279,15 @@ int Texture_Skill_Circle;
 int Texture_Skill_Spray;
 int Texture_Skill_Shotgun;
 int Texture_Skill_None;
+int Texture_Potion_1;
+int Texture_Potion_2;
+int Texture_Potion_3;
+int Texture_Potion_BG;
+int Texture_Potion_None;
+int Texture_Potion_Empty;
+int Texture_Potion_Green[101];
+int Texture_Potion_Red[101];
+int Texture_Potion_Blue[101];
 
 #define M_PIMALDAUMEN 3.14159265358979323846
 
@@ -561,6 +587,8 @@ int IsMonsterNearHero(int hero, double distance) {
     return (HeroNearestMonsterDistance(hero) < distance);
 }
 
+void FillPotions(int hero);
+
 void MonsterDies(int hero,int monster) {
     int map = heroes[hero].map;
     if (map > -1) {
@@ -568,6 +596,7 @@ void MonsterDies(int hero,int monster) {
             if (monster < MAX_MONSTERS) {
                 mapdata[map].monsterHealth[monster] = 0;
                 mapdata[map].monsterAlive[monster] = 0;
+                FillPotions(hero);
                 if (mapdata[map].monsterBoss[monster] != 0) {
                     // Hero wins Map
                     StartMap(hero,heroes[hero].map);
@@ -817,6 +846,54 @@ void HeroSkillDemon(int hero) {
     }
 }
 
+#define POTION_nil 0
+#define POTION_Health 1
+#define POTION_Mana 2
+
+void FillPotions(int hero) {
+    if (heroes[hero].health > 0) {
+        for (int i=0; i<3; i++) {
+            if (heroes[hero].potionSlots[i] == POTION_Health) heroes[hero].potionState[i] += 10;
+            if (heroes[hero].potionSlots[i] == POTION_Mana) heroes[hero].potionState[i] += 10;
+            if (heroes[hero].potionState[i] > 100) heroes[hero].potionState[i] = 100;
+        }
+    }
+}
+
+void HeroUsePotion(int hero,int potion) {
+    if (heroes[hero].health > 0) {
+        if (heroes[hero].potionSlots[potion] == POTION_Health) {
+            if (heroes[hero].potionState[potion] >= 10) {
+                heroes[hero].potionState[potion] -= 10;
+                heroes[hero].health += 5000;
+                if (heroes[hero].health > heroes[hero].healthMax) heroes[hero].health = heroes[hero].healthMax;
+            }
+        }
+        if (heroes[hero].potionSlots[potion] == POTION_Mana) {
+            if (heroes[hero].potionState[potion] >= 10) {
+                heroes[hero].potionState[potion] -= 10;
+                heroes[hero].mana += 500;
+                if (heroes[hero].mana > heroes[hero].manaMax) heroes[hero].mana = heroes[hero].manaMax;
+            }
+        }
+    }
+}
+
+void HeroPotionUseDemon(int hero) {
+    if ( heroes[hero].autopilotEnabled != 0) {
+        if (heroes[hero].health > 0) {
+            for (int i=0; i<3; i++) {
+                if (heroes[hero].potionSlots[i] == POTION_Health) {
+                    if (heroes[hero].health*2 < heroes[hero].healthMax) HeroUsePotion(hero,i);
+                }
+                if (heroes[hero].potionSlots[i] == POTION_Mana) {
+                    if (heroes[hero].mana*2 < heroes[hero].manaMax) HeroUsePotion(hero,i);
+                }
+            }
+        }
+    }
+}
+
 void HeroDeamon(int hero) {
     int attackDistance;
     if (heroes[hero].isHero!=0) {
@@ -891,6 +968,7 @@ void HeroDeamon(int hero) {
                 }
             }
             
+            HeroPotionUseDemon(hero);
             
             if (heroes[hero].walking!=0) {
                 heroes[hero].walkCycle++;
@@ -1000,6 +1078,16 @@ int SkillTexture(int skill) {
     return Texture_Skill_None;
 }
 
+int PotionTexture(int potion,int state) {
+    if (state >= 0) {
+        if (state <= 100 ) {
+            if (potion == POTION_Health) return Texture_Potion_Red[state];
+            if (potion == POTION_Mana) return Texture_Potion_Blue[state];
+        }
+    }
+    return Texture_Potion_None;
+}
+
 void DrawHeroGUI(int hero) {
     int pos_x1;
     int pos_x2;
@@ -1019,17 +1107,17 @@ void DrawHeroGUI(int hero) {
     }
     
     if (manageMode == 0) {
-        pos_x1 = 775;
+        pos_x1 = 770;
         pos_x2 = 870;
         pos_x3 = 970;
-        pos_x4 = 1065;
+        pos_x4 = 1070;
         pox_y = 980;
         size = 80;
     } else {
-        pos_x1 = 590;
+        pos_x1 = 580;
         pos_x2 = 780;
         pos_x3 = 980;
-        pos_x4 = 1170;
+        pos_x4 = 1180;
         pox_y = 900;
         size = 160;
     }
@@ -1051,6 +1139,30 @@ void DrawHeroGUI(int hero) {
     DrawImageScaled(Texture_Skill_W,pos_x2,pox_y,size,size);
     DrawImageScaled(Texture_Skill_E,pos_x3,pox_y,size,size);
     DrawImageScaled(Texture_Skill_R,pos_x4,pox_y,size,size);
+    
+    if (manageMode == 0) {
+        pos_x1 = 1520;
+        pos_x2 = 1620;
+        pos_x3 = 1720;
+        pox_y = 980;
+        size = 80;
+    } else {
+        pos_x1 = 1380;
+        pos_x2 = 1560;
+        pos_x3 = 1740;
+        pox_y = 900;
+        size = 160;
+    }
+    DrawImageScaled(Texture_Potion_BG,pos_x1,pox_y,size,size);
+    DrawImageScaled(Texture_Potion_BG,pos_x2,pox_y,size,size);
+    DrawImageScaled(Texture_Potion_BG,pos_x3,pox_y,size,size);
+    DrawImageScaled(PotionTexture(heroes[hero].potionSlots[0],heroes[hero].potionState[0]),pos_x1,pox_y,size,size);
+    DrawImageScaled(PotionTexture(heroes[hero].potionSlots[1],heroes[hero].potionState[1]),pos_x2,pox_y,size,size);
+    DrawImageScaled(PotionTexture(heroes[hero].potionSlots[2],heroes[hero].potionState[2]),pos_x3,pox_y,size,size);
+    DrawImageScaled(Texture_Potion_1,pos_x1,pox_y,size,size);
+    DrawImageScaled(Texture_Potion_2,pos_x2,pox_y,size,size);
+    DrawImageScaled(Texture_Potion_3,pos_x3,pox_y,size,size);
+    
     
     DrawImageScaled(BarTexture,20,20,320,150);
     double life = heroes[hero].health;
@@ -1275,6 +1387,12 @@ void StartMap(int hero,int map) {
     heroes[hero].autopilot = heroes[hero].autopilotEnabled;
     InitMapWaypoints(hero,map);
     heroes[hero].waypoint = 0;
+    heroes[hero].walking = 0;
+    heroes[hero].attacking = 0;
+    heroes[hero].skilling = 0;
+    heroes[hero].potionState[0] = 100;
+    heroes[hero].potionState[1] = 100;
+    heroes[hero].potionState[2] = 100;
 }
 
 int LoadFont() {
@@ -1334,6 +1452,178 @@ void InitSettings(void) {
     fclose(f);
 }
 
+#define POTION_FULL 72  // it imagesize of 256 ... if image is smaller/larger you need to map it to 0...255)
+#define POTION_EMPTY 198
+
+void GeneratePotionTextures() {
+    for (int i=0;i<100;i++) {
+        int line = POTION_EMPTY - ((i*(POTION_EMPTY-POTION_FULL))/100);
+        
+        //red bottle
+        Texture_Potion_Red[i] = CreateImage(256,256);
+        DrawOutput(Texture_Potion_Red[i]);
+        DrawImage(Texture_Potion_Red[100],0,0,256,256);
+        DrawBox_(0,0,256,line,RGBA(255,255,255,0));
+        DrawImage(Texture_Potion_Empty,0,0,256,256);
+        
+        //green bottle
+        Texture_Potion_Green[i] = CreateImage(256,256);
+        DrawOutput(Texture_Potion_Green[i]);
+        DrawImage(Texture_Potion_Green[100],0,0,256,256);
+        DrawBox_(0,0,256,line,RGBA(255,255,255,0));
+        DrawImage(Texture_Potion_Empty,0,0,256,256);
+        
+        //blue bottle
+        Texture_Potion_Blue[i] = CreateImage(256,256);
+        DrawOutput(Texture_Potion_Blue[i]);
+        DrawImage(Texture_Potion_Blue[100],0,0,256,256);
+        DrawBox_(0,0,256,line,RGBA(255,255,255,0));
+        DrawImage(Texture_Potion_Empty,0,0,256,256);
+    }
+}
+
+#define LOAD(var, path) \
+    do { if (((var) = LoadImage(path)) == 0) return 0; } while (0)
+
+int LoadTextures() {
+    
+    // weapons
+    
+    LOAD(Texture_Sword   ,"assets/sword.png");
+    LOAD(Texture_Staff   ,"assets/staff.png");
+    LOAD(Texture_Bow     ,"assets/bow.png");
+    LOAD(Texture_Arrow   ,"assets/arrow.png");
+    LOAD(Texture_ArcArrow,"assets/arc_arrow.png");
+    
+    // heros
+    
+    LOAD(Texture_head      ,"assets/head.png");
+    LOAD(Texture_leftHand  ,"assets/handL.png");
+    LOAD(Texture_rightHand ,"assets/handR.png");
+    LOAD(Texture_leftWing1 ,"assets/LeftWing1.png");
+    LOAD(Texture_rightWing1,"assets/RightWing1.png");
+    
+    // monsters
+    
+    LOAD(Texture_monsterHuman,"assets/monsters/human.png");
+    
+    // GUI
+    
+    LOAD(VoidBG          ,"assets/canvas.png");
+    LOAD(CanvasBG        ,"assets/bg.png");
+    LOAD(HeroBG          ,"assets/bgHero.png");
+    LOAD(TargetIcon      ,"assets/target.png");
+    LOAD(AutopilotOnIcon ,"assets/autopilot_on.png");
+    LOAD(AutopilotOffIcon,"assets/autopilot_off.png");
+    LOAD(BarTexture      ,"assets/bar.png");
+    LOAD(LifeTexture     ,"assets/life.png");
+    LOAD(ManaTexture     ,"assets/mana.png");
+    LOAD(ManagedModeIcon ,"assets/tiled.png");
+    LOAD(FullscreenIcon  ,"assets/fullscreen.png");
+    
+    // Skills
+    
+    LOAD(Texture_Skill_Q      ,"assets/skill_Q.png");
+    LOAD(Texture_Skill_W      ,"assets/skill_W.png");
+    LOAD(Texture_Skill_E      ,"assets/skill_E.png");
+    LOAD(Texture_Skill_R      ,"assets/skill_R.png");
+    LOAD(Texture_Skill_5      ,"assets/skill_5.png");
+    LOAD(Texture_Skill_BG     ,"assets/skill_BG.png");
+    LOAD(Texture_Skill_Active ,"assets/skill_active.png");
+    LOAD(Texture_Skill_Spray  ,"assets/skill_spray.png");
+    LOAD(Texture_Skill_Circle ,"assets/skill_circle.png");
+    LOAD(Texture_Skill_Shotgun,"assets/skill_shotgun.png");
+    LOAD(Texture_Skill_None   ,"assets/skill_None.png");
+    
+    // Potions
+    
+    LOAD(Texture_Potion_1         ,"assets/potion_1.png");
+    LOAD(Texture_Potion_2         ,"assets/potion_2.png");
+    LOAD(Texture_Potion_3         ,"assets/potion_3.png");
+    LOAD(Texture_Potion_BG        ,"assets/potion_BG.png");
+    LOAD(Texture_Potion_None      ,"assets/potion_None.png");
+    LOAD(Texture_Potion_Empty     ,"assets/potion_empty.png");
+    LOAD(Texture_Potion_Green[100],"assets/potion_green.png");
+    LOAD(Texture_Potion_Red[100]  ,"assets/potion_red.png");
+    LOAD(Texture_Potion_Blue[100] ,"assets/potion_blue.png");
+    
+    GeneratePotionTextures();
+    
+    // Font
+    
+    if (LoadFont() == 0) return 0;
+    
+    return 1;
+}
+
+void TestGame() {
+    ActiveHeroSlots[0] = 0;
+    ActiveHeroSlots[1] = 1;
+    ActiveHeroSlots[2] = 2;
+    ActiveHeroSlots[3] = 3;
+    ActiveHero = 0;
+    heroes[0].isHero = 1;
+    heroes[0].class = CLASS_Knight;
+    heroes[0].speed = 10;
+    heroes[0].autopilotEnabled = 1;
+    heroes[0].healthMax = 10000;
+    heroes[0].manaMax = 1000;
+    heroes[0].potionSlots[0] = POTION_Health;
+    heroes[0].potionSlots[1] = POTION_Mana;
+    heroes[0].potionSlots[2] = POTION_Mana;
+    heroes[1].isHero = 1;
+    heroes[1].class = CLASS_Knight;
+    heroes[1].speed = 10;
+    heroes[1].autopilotEnabled = 1;
+    heroes[1].healthMax = 10000;
+    heroes[1].manaMax = 1000;
+    heroes[1].potionSlots[0] = POTION_Health;
+    heroes[1].potionSlots[1] = POTION_Mana;
+    heroes[1].potionSlots[2] = POTION_Mana;
+    heroes[2].isHero = 1;
+    heroes[2].class = CLASS_Archer;
+    heroes[2].speed = 10;
+    heroes[2].autopilotEnabled = 1;
+    heroes[2].healthMax = 10000;
+    heroes[2].manaMax = 1000;
+    heroes[2].skillSlots[0] = 1;
+    heroes[2].skillSlots[1] = 2;
+    heroes[2].skillSlots[2] = 3;
+    heroes[2].skillSlots[3] = 4;
+    heroes[2].potionSlots[0] = POTION_Health;
+    heroes[2].potionSlots[1] = POTION_Mana;
+    heroes[2].potionSlots[2] = POTION_Mana;
+    heroes[3].isHero = 1;
+    heroes[3].class = CLASS_Mage;
+    heroes[3].speed = 10;
+    heroes[3].autopilotEnabled = 1;
+    heroes[3].healthMax = 10000;
+    heroes[3].manaMax = 1000;
+    heroes[3].skillSlots[0] = 5;
+    heroes[3].skillSlots[1] = 6;
+    heroes[3].skillSlots[2] = 7;
+    heroes[3].skillSlots[3] = 8;
+    heroes[3].potionSlots[0] = POTION_Health;
+    heroes[3].potionSlots[1] = POTION_Mana;
+    heroes[3].potionSlots[2] = POTION_Mana;
+    
+    heroes[4].isHero = 1;
+    heroes[4].class = CLASS_Knight;
+    heroes[4].speed = 50;
+    heroes[4].autopilotEnabled = 1;
+    heroes[4].healthMax = 10000;
+    heroes[4].manaMax = 1000;
+    heroes[4].potionSlots[0] = POTION_Health;
+    heroes[4].potionSlots[1] = POTION_Health;
+    heroes[4].potionSlots[2] = POTION_Mana;
+    
+    StartMap(0,0);
+    StartMap(1,1);
+    StartMap(2,2);
+    StartMap(3,3);
+    StartMap(4,4);
+}
+
 void GameMain(void) {
     engineStep = 0;
     InitMapTiles();
@@ -1357,169 +1647,10 @@ void GameMain(void) {
         if (HeroCanvas[i]==0) return;
     }
     
-    // weapons
-    
-    Texture_Sword = LoadImage("assets/sword.png");
-    if (Texture_Sword==0) return;
-    
-    Texture_Staff = LoadImage("assets/staff.png");
-    if (Texture_Staff==0) return;
-    
-    Texture_Bow = LoadImage("assets/bow.png");
-    if (Texture_Bow==0) return;
-    
-    Texture_Arrow = LoadImage("assets/arrow.png");
-    if (Texture_Arrow==0) return;
-    
-    Texture_ArcArrow = LoadImage("assets/arc_arrow.png");
-    if (Texture_ArcArrow==0) return;
-    
-    // heros
-    
-    Texture_head = LoadImage("assets/head.png");
-    if (Texture_head==0) return;
-    
-    Texture_leftHand = LoadImage("assets/handL.png");
-    if (Texture_leftHand==0) return;
-    
-    Texture_rightHand = LoadImage("assets/handR.png");
-    if (Texture_rightHand==0) return;
-    
-    Texture_leftWing1 = LoadImage("assets/LeftWing1.png");
-    if (Texture_leftWing1==0) return;
-    
-    Texture_rightWing1 = LoadImage("assets/RightWing1.png");
-    if (Texture_rightWing1==0) return;
-    
-    // monsters
-    
-    Texture_monsterHuman = LoadImage("assets/monsters/human.png");
-    if (Texture_monsterHuman==0) return;
-    
-    // GUI
-    
-    VoidBG = LoadImage("assets/canvas.png");
-    if (VoidBG==0) return;
-    
-    CanvasBG = LoadImage("assets/bg.png");
-    if (CanvasBG==0) return;
-    
-    HeroBG = LoadImage("assets/bgHero.png");
-    if (HeroBG==0) return;
-    
-    TargetIcon = LoadImage("assets/target.png");
-    if (TargetIcon==0) return;
-    
-    AutopilotOnIcon = LoadImage("assets/autopilot_on.png");
-    if (AutopilotOnIcon==0) return;
-    
-    AutopilotOffIcon = LoadImage("assets/autopilot_off.png");
-    if (AutopilotOffIcon==0) return;
-    
-    BarTexture = LoadImage("assets/bar.png");
-    if (BarTexture==0) return;
-    
-    LifeTexture = LoadImage("assets/life.png");
-    if (LifeTexture==0) return;
-    
-    ManaTexture = LoadImage("assets/mana.png");
-    if (ManaTexture==0) return;
-    
-    ManagedModeIcon = LoadImage("assets/tiled.png");
-    if (ManagedModeIcon==0) return;
-    
-    FullscreenIcon = LoadImage("assets/fullscreen.png");
-    if (FullscreenIcon==0) return;
-    
-    // Skills
-    
-    Texture_Skill_Q = LoadImage("assets/skill_Q.png");
-    if (Texture_Skill_Q==0) return;
-    
-    Texture_Skill_W = LoadImage("assets/skill_W.png");
-    if (Texture_Skill_W==0) return;
-    
-    Texture_Skill_E = LoadImage("assets/skill_E.png");
-    if (Texture_Skill_E==0) return;
-    
-    Texture_Skill_R = LoadImage("assets/skill_R.png");
-    if (Texture_Skill_R==0) return;
-    
-    Texture_Skill_5 = LoadImage("assets/skill_5.png");
-    if (Texture_Skill_5==0) return;
-    
-    Texture_Skill_BG = LoadImage("assets/skill_BG.png");
-    if (Texture_Skill_BG==0) return;
-    
-    Texture_Skill_Active = LoadImage("assets/skill_active.png");
-    if (Texture_Skill_Active==0) return;
-    
-    Texture_Skill_Spray = LoadImage("assets/skill_spray.png");
-    if (Texture_Skill_Spray==0) return;
-    
-    Texture_Skill_Circle = LoadImage("assets/skill_circle.png");
-    if (Texture_Skill_Circle==0) return;
-    
-    Texture_Skill_Shotgun = LoadImage("assets/skill_shotgun.png");
-    if (Texture_Skill_Shotgun==0) return;
-    
-    Texture_Skill_None = LoadImage("assets/skill_None.png");
-    if (Texture_Skill_None==0) return;
-    
-    
-    if (LoadFont() == 0) return;
+    if (LoadTextures() == 0) return;
     
     manageMode = 1;
-    ActiveHeroSlots[0] = 0;
-    ActiveHeroSlots[1] = 1;
-    ActiveHeroSlots[2] = 2;
-    ActiveHeroSlots[3] = 3;
-    ActiveHero = 0;
-    heroes[0].isHero = 1;
-    heroes[0].class = CLASS_Knight;
-    heroes[0].speed = 10;
-    heroes[0].autopilotEnabled = 1;
-    heroes[0].healthMax = 10000;
-    heroes[0].manaMax = 1000;
-    heroes[1].isHero = 1;
-    heroes[1].class = CLASS_Knight;
-    heroes[1].speed = 10;
-    heroes[1].autopilotEnabled = 1;
-    heroes[1].healthMax = 10000;
-    heroes[1].manaMax = 1000;
-    heroes[2].isHero = 1;
-    heroes[2].class = CLASS_Archer;
-    heroes[2].speed = 10;
-    heroes[2].autopilotEnabled = 1;
-    heroes[2].healthMax = 10000;
-    heroes[2].manaMax = 1000;
-    heroes[2].skillSlots[0] = 1;
-    heroes[2].skillSlots[1] = 2;
-    heroes[2].skillSlots[2] = 3;
-    heroes[2].skillSlots[3] = 4;
-    heroes[3].isHero = 1;
-    heroes[3].class = CLASS_Mage;
-    heroes[3].speed = 10;
-    heroes[3].autopilotEnabled = 1;
-    heroes[3].healthMax = 10000;
-    heroes[3].manaMax = 1000;
-    heroes[3].skillSlots[0] = 5;
-    heroes[3].skillSlots[1] = 6;
-    heroes[3].skillSlots[2] = 7;
-    heroes[3].skillSlots[3] = 8;
-    
-    heroes[4].isHero = 1;
-    heroes[4].class = CLASS_Knight;
-    heroes[4].speed = 50;
-    heroes[4].autopilotEnabled = 1;
-    heroes[4].healthMax = 10000;
-    heroes[4].manaMax = 1000;
-    
-    StartMap(0,0);
-    StartMap(1,1);
-    StartMap(2,2);
-    StartMap(3,3);
-    StartMap(4,4);
+    TestGame();
     
     while (!ShouldQuit()) {
         
@@ -1561,25 +1692,46 @@ void GameMain(void) {
         
         int key = GetKey();
         if (key==27) return;
-        if (key=='1') {
+        if (key=='y') {
             ActiveHero = 0;
             manageMode = 0;
         }
-        if (key=='2') {
+        if (key=='x') {
             ActiveHero = 1;
             manageMode = 0;
         }
-        if (key=='3') {
+        if (key=='c') {
             ActiveHero = 2;
             manageMode = 0;
         }
-        if (key=='4') {
+        if (key=='v') {
             ActiveHero = 3;
             manageMode = 0;
         }
-        if (key=='5') {
+        if (key=='b') {
             ActiveHero = 4;
             manageMode = 0;
+        }
+        if (key=='1') {
+            if (manageMode == 0) {
+                if (heroes[ActiveHero].autopilotEnabled == 0) {
+                    HeroUsePotion(ActiveHero,0);
+                }
+            }
+        }
+        if (key=='2') {
+            if (manageMode == 0) {
+                if (heroes[ActiveHero].autopilotEnabled == 0) {
+                    HeroUsePotion(ActiveHero,1);
+                }
+            }
+        }
+        if (key=='3') {
+            if (manageMode == 0) {
+                if (heroes[ActiveHero].autopilotEnabled == 0) {
+                    HeroUsePotion(ActiveHero,2);
+                }
+            }
         }
         if (key=='6') {
             for (int i=0; i<5; i++) {

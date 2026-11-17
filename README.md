@@ -6,7 +6,7 @@
 
 ### characters
 
-1-5: switch to character 1-5
+y,x,c,v,b: switch to test-character 1-5
 
 9: switch to managed mode (see character 1-4 all together)
 
@@ -31,6 +31,10 @@ w: shot circle of 36 projectiles (one every 10°)
 e: shot projectile with random offset from -20° to +20° (hold for rapid fire)
 
 r: shotgun (shot 49 projectile from -24° to +24° with 1°-steps)
+
+### potions
+
+1-3: use potion-slot 1-3
 
 ### autopilot
 
