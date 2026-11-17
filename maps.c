@@ -82,6 +82,7 @@ struct map {
     int monsterAlive[MAX_MONSTERS];
     int monsterTier[MAX_MONSTERS];
     int monsterBoss[MAX_MONSTERS];
+    int monsterAttackCycle[MAX_MONSTERS];
 };
 
 struct map mapdata[MAX_MAPS];
@@ -111,6 +112,7 @@ void InitMapInfos() {
             mapdata[y].monsterAlive[x] = 0;
             mapdata[y].monsterTier[x] = 0;
             mapdata[y].monsterBoss[x] = 0;
+            mapdata[y].monsterAttackCycle[x] = 0;
         }
     }
 }
@@ -128,6 +130,7 @@ void AddMonster(int map, int monster, int type, int x, int y, int tier, int boss
         mapdata[map].monsterAlive[monster] = 1;
         mapdata[map].monsterTier[monster] = tier;
         mapdata[map].monsterBoss[monster] = boss;
+        mapdata[map].monsterAttackCycle[monster] = 0;
 }
 
 void InitMapInfo(int hero,int map) {
@@ -157,44 +160,44 @@ void InitMapInfo(int hero,int map) {
         mapdata[map].hero = hero;
         mapdata[map].angle = 90;
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
-        AddMonster(map, 0, MONSTER_HUMAN, 7500, 5900,   0,   1,    1,    10,  1000); // BOSS
+        AddMonster(map, 0, MONSTER_HUMAN, 7500, 5900,   0,   1,    1,    50,  1000); // BOSS
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
-        AddMonster(map, 1, MONSTER_HUMAN, 6000, 5800,   0,   0,    1,     1,   100);
-        AddMonster(map, 2, MONSTER_HUMAN, 6300, 5800,   0,   0,    1,     1,   100);
-        AddMonster(map, 3, MONSTER_HUMAN, 6600, 5800,   0,   0,    1,     1,   100);
-        AddMonster(map, 4, MONSTER_HUMAN, 6900, 5800,   0,   0,    1,     1,   100);
-        AddMonster(map, 5, MONSTER_HUMAN, 7200, 5800,   0,   0,    1,     1,   100);
-        AddMonster(map, 6, MONSTER_HUMAN, 7500, 5800,   0,   0,    1,     1,   100);
-        AddMonster(map, 7, MONSTER_HUMAN, 6000, 6100,   0,   0,    1,     1,   100);
-        AddMonster(map, 8, MONSTER_HUMAN, 6300, 6100,   0,   0,    1,     1,   100);
-        AddMonster(map, 9, MONSTER_HUMAN, 6600, 6100,   0,   0,    1,     1,   100);
-        AddMonster(map,10, MONSTER_HUMAN, 6900, 6100,   0,   0,    1,     1,   100);
-        AddMonster(map,11, MONSTER_HUMAN, 7200, 6100,   0,   0,    1,     1,   100);
-        AddMonster(map,12, MONSTER_HUMAN, 7500, 6100,   0,   0,    1,     1,   100);
-        AddMonster(map,13, MONSTER_HUMAN, 6000, 6400,   0,   0,    1,     1,   100);
-        AddMonster(map,14, MONSTER_HUMAN, 6300, 6400,   0,   0,    1,     1,   100);
-        AddMonster(map,15, MONSTER_HUMAN, 6600, 6400,   0,   0,    1,     1,   100);
-        AddMonster(map,16, MONSTER_HUMAN, 6900, 6400,   0,   0,    1,     1,   100);
-        AddMonster(map,17, MONSTER_HUMAN, 7200, 6400,   0,   0,    1,     1,   100);
-        AddMonster(map,18, MONSTER_HUMAN, 7500, 6400,   0,   0,    1,     1,   100);
-        AddMonster(map,19, MONSTER_HUMAN, 6000, 6700,   0,   0,    1,     1,   100);
-        AddMonster(map,20, MONSTER_HUMAN, 6300, 6700,   0,   0,    1,     1,   100);
-        AddMonster(map,21, MONSTER_HUMAN, 6600, 6700,   0,   0,    1,     1,   100);
-        AddMonster(map,22, MONSTER_HUMAN, 6900, 6700,   0,   0,    1,     1,   100);
-        AddMonster(map,23, MONSTER_HUMAN, 7200, 6700,   0,   0,    1,     1,   100);
-        AddMonster(map,24, MONSTER_HUMAN, 7500, 6700,   0,   0,    1,     1,   100);
-        AddMonster(map,25, MONSTER_HUMAN, 6000, 7000,   0,   0,    1,     1,   100);
-        AddMonster(map,26, MONSTER_HUMAN, 6300, 7000,   0,   0,    1,     1,   100);
-        AddMonster(map,27, MONSTER_HUMAN, 6600, 7000,   0,   0,    1,     1,   100);
-        AddMonster(map,28, MONSTER_HUMAN, 6900, 7000,   0,   0,    1,     1,   100);
-        AddMonster(map,29, MONSTER_HUMAN, 7200, 7000,   0,   0,    1,     1,   100);
-        AddMonster(map,30, MONSTER_HUMAN, 7500, 7000,   0,   0,    1,     1,   100);
-        AddMonster(map,31, MONSTER_HUMAN, 6000, 7300,   0,   0,    1,     1,   100);
-        AddMonster(map,32, MONSTER_HUMAN, 6300, 7300,   0,   0,    1,     1,   100);
-        AddMonster(map,33, MONSTER_HUMAN, 6600, 7300,   0,   0,    1,     1,   100);
-        AddMonster(map,34, MONSTER_HUMAN, 6900, 7300,   0,   0,    1,     1,   100);
-        AddMonster(map,35, MONSTER_HUMAN, 7200, 7300,   0,   0,    1,     1,   100);
-        AddMonster(map,36, MONSTER_HUMAN, 7500, 7300,   0,   0,    1,     1,   100);
+        AddMonster(map, 1, MONSTER_HUMAN, 6000, 5800,   0,   0,    1,    10,   100);
+        AddMonster(map, 2, MONSTER_HUMAN, 6300, 5800,   0,   0,    1,    10,   100);
+        AddMonster(map, 3, MONSTER_HUMAN, 6600, 5800,   0,   0,    1,    10,   100);
+        AddMonster(map, 4, MONSTER_HUMAN, 6900, 5800,   0,   0,    1,    10,   100);
+        AddMonster(map, 5, MONSTER_HUMAN, 7200, 5800,   0,   0,    1,    10,   100);
+        AddMonster(map, 6, MONSTER_HUMAN, 7500, 5800,   0,   0,    1,    10,   100);
+        AddMonster(map, 7, MONSTER_HUMAN, 6000, 6100,   0,   0,    1,    10,   100);
+        AddMonster(map, 8, MONSTER_HUMAN, 6300, 6100,   0,   0,    1,    10,   100);
+        AddMonster(map, 9, MONSTER_HUMAN, 6600, 6100,   0,   0,    1,    10,   100);
+        AddMonster(map,10, MONSTER_HUMAN, 6900, 6100,   0,   0,    1,    10,   100);
+        AddMonster(map,11, MONSTER_HUMAN, 7200, 6100,   0,   0,    1,    10,   100);
+        AddMonster(map,12, MONSTER_HUMAN, 7500, 6100,   0,   0,    1,    10,   100);
+        AddMonster(map,13, MONSTER_HUMAN, 6000, 6400,   0,   0,    1,    10,   100);
+        AddMonster(map,14, MONSTER_HUMAN, 6300, 6400,   0,   0,    1,    10,   100);
+        AddMonster(map,15, MONSTER_HUMAN, 6600, 6400,   0,   0,    1,    10,   100);
+        AddMonster(map,16, MONSTER_HUMAN, 6900, 6400,   0,   0,    1,    10,   100);
+        AddMonster(map,17, MONSTER_HUMAN, 7200, 6400,   0,   0,    1,    10,   100);
+        AddMonster(map,18, MONSTER_HUMAN, 7500, 6400,   0,   0,    1,    10,   100);
+        AddMonster(map,19, MONSTER_HUMAN, 6000, 6700,   0,   0,    1,    10,   100);
+        AddMonster(map,20, MONSTER_HUMAN, 6300, 6700,   0,   0,    1,    10,   100);
+        AddMonster(map,21, MONSTER_HUMAN, 6600, 6700,   0,   0,    1,    10,   100);
+        AddMonster(map,22, MONSTER_HUMAN, 6900, 6700,   0,   0,    1,    10,   100);
+        AddMonster(map,23, MONSTER_HUMAN, 7200, 6700,   0,   0,    1,    10,   100);
+        AddMonster(map,24, MONSTER_HUMAN, 7500, 6700,   0,   0,    1,    10,   100);
+        AddMonster(map,25, MONSTER_HUMAN, 6000, 7000,   0,   0,    1,    10,   100);
+        AddMonster(map,26, MONSTER_HUMAN, 6300, 7000,   0,   0,    1,    10,   100);
+        AddMonster(map,27, MONSTER_HUMAN, 6600, 7000,   0,   0,    1,    10,   100);
+        AddMonster(map,28, MONSTER_HUMAN, 6900, 7000,   0,   0,    1,    10,   100);
+        AddMonster(map,29, MONSTER_HUMAN, 7200, 7000,   0,   0,    1,    10,   100);
+        AddMonster(map,30, MONSTER_HUMAN, 7500, 7000,   0,   0,    1,    10,   100);
+        AddMonster(map,31, MONSTER_HUMAN, 6000, 7300,   0,   0,    1,    10,   100);
+        AddMonster(map,32, MONSTER_HUMAN, 6300, 7300,   0,   0,    1,    10,   100);
+        AddMonster(map,33, MONSTER_HUMAN, 6600, 7300,   0,   0,    1,    10,   100);
+        AddMonster(map,34, MONSTER_HUMAN, 6900, 7300,   0,   0,    1,    10,   100);
+        AddMonster(map,35, MONSTER_HUMAN, 7200, 7300,   0,   0,    1,    10,   100);
+        AddMonster(map,36, MONSTER_HUMAN, 7500, 7300,   0,   0,    1,    10,   100);
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
     }
     
@@ -205,39 +208,39 @@ void InitMapInfo(int hero,int map) {
         mapdata[map].hero = hero;
         mapdata[map].angle = 90;
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
-        AddMonster(map, 0, MONSTER_HUMAN, 7400, 1950,   0,   1,    1,    10,  1000); // BOSS
+        AddMonster(map, 0, MONSTER_HUMAN, 7400, 1950,   0,   1,    1,    50,  1000); // BOSS
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
-        AddMonster(map, 1, MONSTER_HUMAN, 5200, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map, 2, MONSTER_HUMAN, 5250, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map, 3, MONSTER_HUMAN, 5300, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map, 4, MONSTER_HUMAN, 5350, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map, 5, MONSTER_HUMAN, 5400, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map, 6, MONSTER_HUMAN, 5450, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map, 7, MONSTER_HUMAN, 5500, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map, 8, MONSTER_HUMAN, 5550, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map, 9, MONSTER_HUMAN, 5600, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,10, MONSTER_HUMAN, 5650, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,11, MONSTER_HUMAN, 5700, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,12, MONSTER_HUMAN, 5750, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,13, MONSTER_HUMAN, 5800, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,14, MONSTER_HUMAN, 5850, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,15, MONSTER_HUMAN, 5900, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,16, MONSTER_HUMAN, 5950, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,17, MONSTER_HUMAN, 6000, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,18, MONSTER_HUMAN, 6050, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,19, MONSTER_HUMAN, 6100, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,20, MONSTER_HUMAN, 6150, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,21, MONSTER_HUMAN, 6200, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,22, MONSTER_HUMAN, 6250, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,23, MONSTER_HUMAN, 6300, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,24, MONSTER_HUMAN, 6350, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,25, MONSTER_HUMAN, 6400, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,26, MONSTER_HUMAN, 6450, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,27, MONSTER_HUMAN, 6500, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,28, MONSTER_HUMAN, 6550, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,29, MONSTER_HUMAN, 6600, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,30, MONSTER_HUMAN, 6650, 3050,   0,   0,    1,     1,   100);
-        AddMonster(map,31, MONSTER_HUMAN, 6700, 3050,   0,   0,    1,     1,   100);
+        AddMonster(map, 1, MONSTER_HUMAN, 5200, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map, 2, MONSTER_HUMAN, 5250, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map, 3, MONSTER_HUMAN, 5300, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map, 4, MONSTER_HUMAN, 5350, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map, 5, MONSTER_HUMAN, 5400, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map, 6, MONSTER_HUMAN, 5450, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map, 7, MONSTER_HUMAN, 5500, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map, 8, MONSTER_HUMAN, 5550, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map, 9, MONSTER_HUMAN, 5600, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,10, MONSTER_HUMAN, 5650, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,11, MONSTER_HUMAN, 5700, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,12, MONSTER_HUMAN, 5750, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,13, MONSTER_HUMAN, 5800, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,14, MONSTER_HUMAN, 5850, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,15, MONSTER_HUMAN, 5900, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,16, MONSTER_HUMAN, 5950, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,17, MONSTER_HUMAN, 6000, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,18, MONSTER_HUMAN, 6050, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,19, MONSTER_HUMAN, 6100, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,20, MONSTER_HUMAN, 6150, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,21, MONSTER_HUMAN, 6200, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,22, MONSTER_HUMAN, 6250, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,23, MONSTER_HUMAN, 6300, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,24, MONSTER_HUMAN, 6350, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,25, MONSTER_HUMAN, 6400, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,26, MONSTER_HUMAN, 6450, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,27, MONSTER_HUMAN, 6500, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,28, MONSTER_HUMAN, 6550, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,29, MONSTER_HUMAN, 6600, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,30, MONSTER_HUMAN, 6650, 3050,   0,   0,    1,    20,   100);
+        AddMonster(map,31, MONSTER_HUMAN, 6700, 3050,   0,   0,    1,    20,   100);
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
     }
     
@@ -248,33 +251,33 @@ void InitMapInfo(int hero,int map) {
         mapdata[map].hero = hero;
         mapdata[map].angle = 90;
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
-        AddMonster(map, 0, MONSTER_HUMAN, 5900,  900,   0,   1,    1,    10,  1000); // BOSS
-        AddMonster(map, 1, MONSTER_HUMAN, 5700, 2000,   0,   0,    1,     5,   500); // BOSS (Mini)
+        AddMonster(map, 0, MONSTER_HUMAN, 5900,  900,   0,   1,    1,   100,  1000); // BOSS
+        AddMonster(map, 1, MONSTER_HUMAN, 5700, 2000,   0,   0,    1,    50,   500); // BOSS (Mini)
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
-        AddMonster(map, 2, MONSTER_HUMAN, 2000,  700,   0,   0,    1,     2,   100);
-        AddMonster(map, 3, MONSTER_HUMAN, 2000,  850,   0,   0,    1,     2,   100);
-        AddMonster(map, 4, MONSTER_HUMAN, 2000, 1000,   0,   0,    1,     2,   100);
-        AddMonster(map, 5, MONSTER_HUMAN, 2400,  700,   0,   0,    1,     2,   100);
-        AddMonster(map, 6, MONSTER_HUMAN, 2400,  850,   0,   0,    1,     2,   100);
-        AddMonster(map, 7, MONSTER_HUMAN, 2400, 1000,   0,   0,    1,     2,   100);
-        AddMonster(map, 8, MONSTER_HUMAN, 4000,  700,   0,   0,    1,     3,   100);
-        AddMonster(map, 9, MONSTER_HUMAN, 4000,  850,   0,   0,    1,     3,   100);
-        AddMonster(map,10, MONSTER_HUMAN, 4000, 1000,   0,   0,    1,     3,   100);
-        AddMonster(map,11, MONSTER_HUMAN, 4500,  700,   0,   0,    1,     3,   100);
-        AddMonster(map,12, MONSTER_HUMAN, 4500,  850,   0,   0,    1,     3,   100);
-        AddMonster(map,13, MONSTER_HUMAN, 4500, 1000,   0,   0,    1,     3,   100);
-        AddMonster(map,14, MONSTER_HUMAN, 2000, 1850,   0,   0,    1,     1,   100);
-        AddMonster(map,15, MONSTER_HUMAN, 2000, 2000,   0,   0,    1,     1,   100);
-        AddMonster(map,16, MONSTER_HUMAN, 2000, 2150,   0,   0,    1,     1,   100);
-        AddMonster(map,17, MONSTER_HUMAN, 2400, 1850,   0,   0,    1,     1,   100);
-        AddMonster(map,18, MONSTER_HUMAN, 2400, 2000,   0,   0,    1,     1,   100);
-        AddMonster(map,19, MONSTER_HUMAN, 2400, 2150,   0,   0,    1,     1,   100);
-        AddMonster(map,20, MONSTER_HUMAN, 4000, 1850,   0,   0,    1,     1,   100);
-        AddMonster(map,21, MONSTER_HUMAN, 4000, 2000,   0,   0,    1,     1,   100);
-        AddMonster(map,22, MONSTER_HUMAN, 4000, 2150,   0,   0,    1,     1,   100);
-        AddMonster(map,23, MONSTER_HUMAN, 4500, 1850,   0,   0,    1,     1,   100);
-        AddMonster(map,24, MONSTER_HUMAN, 4500, 2000,   0,   0,    1,     1,   100);
-        AddMonster(map,25, MONSTER_HUMAN, 4500, 2150,   0,   0,    1,     1,   100);
+        AddMonster(map, 2, MONSTER_HUMAN, 2000,  700,   0,   0,    1,    20,   100);
+        AddMonster(map, 3, MONSTER_HUMAN, 2000,  850,   0,   0,    1,    20,   100);
+        AddMonster(map, 4, MONSTER_HUMAN, 2000, 1000,   0,   0,    1,    20,   100);
+        AddMonster(map, 5, MONSTER_HUMAN, 2400,  700,   0,   0,    1,    20,   100);
+        AddMonster(map, 6, MONSTER_HUMAN, 2400,  850,   0,   0,    1,    20,   100);
+        AddMonster(map, 7, MONSTER_HUMAN, 2400, 1000,   0,   0,    1,    20,   100);
+        AddMonster(map, 8, MONSTER_HUMAN, 4000,  700,   0,   0,    1,    30,   100);
+        AddMonster(map, 9, MONSTER_HUMAN, 4000,  850,   0,   0,    1,    30,   100);
+        AddMonster(map,10, MONSTER_HUMAN, 4000, 1000,   0,   0,    1,    30,   100);
+        AddMonster(map,11, MONSTER_HUMAN, 4500,  700,   0,   0,    1,    30,   100);
+        AddMonster(map,12, MONSTER_HUMAN, 4500,  850,   0,   0,    1,    30,   100);
+        AddMonster(map,13, MONSTER_HUMAN, 4500, 1000,   0,   0,    1,    30,   100);
+        AddMonster(map,14, MONSTER_HUMAN, 2000, 1850,   0,   0,    1,    10,   100);
+        AddMonster(map,15, MONSTER_HUMAN, 2000, 2000,   0,   0,    1,    10,   100);
+        AddMonster(map,16, MONSTER_HUMAN, 2000, 2150,   0,   0,    1,    10,   100);
+        AddMonster(map,17, MONSTER_HUMAN, 2400, 1850,   0,   0,    1,    10,   100);
+        AddMonster(map,18, MONSTER_HUMAN, 2400, 2000,   0,   0,    1,    10,   100);
+        AddMonster(map,19, MONSTER_HUMAN, 2400, 2150,   0,   0,    1,    10,   100);
+        AddMonster(map,20, MONSTER_HUMAN, 4000, 1850,   0,   0,    1,    10,   100);
+        AddMonster(map,21, MONSTER_HUMAN, 4000, 2000,   0,   0,    1,    10,   100);
+        AddMonster(map,22, MONSTER_HUMAN, 4000, 2150,   0,   0,    1,    10,   100);
+        AddMonster(map,23, MONSTER_HUMAN, 4500, 1850,   0,   0,    1,    10,   100);
+        AddMonster(map,24, MONSTER_HUMAN, 4500, 2000,   0,   0,    1,    10,   100);
+        AddMonster(map,25, MONSTER_HUMAN, 4500, 2150,   0,   0,    1,    10,   100);
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
     }
     
@@ -286,8 +289,8 @@ void InitMapInfo(int hero,int map) {
         mapdata[map].angle = 90;
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
         AddMonster(map, 0, MONSTER_HUMAN,11600,17400,   0,   1,    1,   100, 10000); // BOSS
-        AddMonster(map, 1, MONSTER_HUMAN,13500,13000,   0,   0,    1,    10,  5000); // BOSS (Mini)
-        AddMonster(map, 2, MONSTER_HUMAN,15800,13000,   0,   0,    1,     5,  2000); // BOSS (Mini)
+        AddMonster(map, 1, MONSTER_HUMAN,13500,13000,   0,   0,    1,    50,  5000); // BOSS (Mini)
+        AddMonster(map, 2, MONSTER_HUMAN,15800,13000,   0,   0,    1,    10,  2000); // BOSS (Mini)
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
         //              #, Type         ,    X,    Y,Tier,Boss,Level,Attack,    HP)
     }

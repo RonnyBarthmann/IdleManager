@@ -89,6 +89,9 @@ struct heroClass {
     int skillSlots[4];
     int potionSlots[3];
     int potionState[3];
+    int GameCleared;
+    int GameLost;
+    int GameCooldown;
 };
 
 struct heroClass heroes[MAX_HEROES];
@@ -140,6 +143,9 @@ void ClearHero(int hero) {
     heroes[hero].potionState[0] = 0;
     heroes[hero].potionState[1] = 0;
     heroes[hero].potionState[2] = 0;
+    heroes[hero].GameCleared = 0;
+    heroes[hero].GameLost = 0;
+    heroes[hero].GameCooldown = 300;
     InitWaypointsHero(hero);
 }
 
@@ -288,6 +294,8 @@ int Texture_Potion_Empty;
 int Texture_Potion_Green[101];
 int Texture_Potion_Red[101];
 int Texture_Potion_Blue[101];
+int GameClearTex;
+int GameLostTex;
 
 #define M_PIMALDAUMEN 3.14159265358979323846
 
@@ -403,7 +411,8 @@ void StartMap(int hero,int map);
 
 void HeroDies(int hero) {
     // Hero lost Map
-    StartMap(hero,heroes[hero].map);
+    //StartMap(hero,heroes[hero].map);
+    if (heroes[hero].GameCleared == 0) heroes[hero].GameLost = 1;
 }
 
 void HeroGetsFlatDamage(int hero,int monster, double damage) {
@@ -427,7 +436,10 @@ void MonsterAttacksHero(int hero,int monster) {
             if (monster < MAX_MONSTERS) {
                 if (mapdata[map].monsterExist[monster] != 0) {
                     if (mapdata[map].monsterAlive[monster] != 0) {
-                        HeroGetsFlatDamage(hero,monster,mapdata[map].monsterAttack[monster]);
+                        if (mapdata[map].monsterAttackCycle[monster] == 0) {
+                            HeroGetsFlatDamage(hero,monster,mapdata[map].monsterAttack[monster]);
+                            mapdata[map].monsterAttackCycle[monster] = 1;
+                        }
                     }
                 }
             }
@@ -435,8 +447,14 @@ void MonsterAttacksHero(int hero,int monster) {
     }
 }
 
+void MonsterAttackDemon(int map, int monster) {
+    if (mapdata[map].monsterAttackCycle[monster] != 0) mapdata[map].monsterAttackCycle[monster]++;
+    if (mapdata[map].monsterAttackCycle[monster] > 30) mapdata[map].monsterAttackCycle[monster]=0;
+}
+
 void MonsterDeamon(int map, int monster) {
     int hero = mapdata[map].hero;
+    MonsterAttackDemon(map,monster);
     if (mapdata[map].monsterHealth[monster] < 1) {
         mapdata[map].monsterAlive[monster] = 0;
     }
@@ -512,11 +530,13 @@ void ProjectileDeamon(int projectil) {
             projectiles[projectil].x += sin(projectiles[projectil].angle / (180.0 / M_PIMALDAUMEN)) * projectiles[projectil].speed;
             projectiles[projectil].y -= cos(projectiles[projectil].angle / (180.0 / M_PIMALDAUMEN)) * projectiles[projectil].speed;
             for (int monster=0; monster<MAX_MONSTERS; monster++) {
-                if (mapdata[map].monsterExist[monster]) {
-                    if (mapdata[map].monsterAlive[monster]) {
-                        if (IsMonsterInside(map,monster,projectiles[projectil].x,projectiles[projectil].y,32) != 0) {
-                            MonsterGetsArcaneDamage(hero,monster,200);
-                            projectiles[projectil].valid = 0;
+                if (projectiles[projectil].valid != 0) {
+                    if (mapdata[map].monsterExist[monster]) {
+                        if (mapdata[map].monsterAlive[monster]) {
+                            if (IsMonsterInside(map,monster,projectiles[projectil].x,projectiles[projectil].y,32) != 0) {
+                                MonsterGetsArcaneDamage(hero,monster,200);
+                                projectiles[projectil].valid = 0;
+                            }
                         }
                     }
                 }
@@ -527,11 +547,13 @@ void ProjectileDeamon(int projectil) {
             projectiles[projectil].x += sin(projectiles[projectil].angle / (180.0 / M_PIMALDAUMEN)) * projectiles[projectil].speed;
             projectiles[projectil].y -= cos(projectiles[projectil].angle / (180.0 / M_PIMALDAUMEN)) * projectiles[projectil].speed;
             for (int monster=0; monster<MAX_MONSTERS; monster++) {
-                if (mapdata[map].monsterExist[monster]) {
-                    if (mapdata[map].monsterAlive[monster]) {
-                        if (IsMonsterInside(map,monster,projectiles[projectil].x,projectiles[projectil].y,32) != 0) {
-                            MonsterGetsPiercingDamage(hero,monster,100);
-                            projectiles[projectil].valid = 0;
+                if (projectiles[projectil].valid != 0) {
+                    if (mapdata[map].monsterExist[monster]) {
+                        if (mapdata[map].monsterAlive[monster]) {
+                            if (IsMonsterInside(map,monster,projectiles[projectil].x,projectiles[projectil].y,32) != 0) {
+                                MonsterGetsPiercingDamage(hero,monster,100);
+                                projectiles[projectil].valid = 0;
+                            }
                         }
                     }
                 }
@@ -583,8 +605,12 @@ double HeroNearestMonsterDistance(int hero) {
     return HeroMonsterDistance(hero,monster);
 }
 
-int IsMonsterNearHero(int hero, double distance) {
+int IsAnyMonsterNearHero(int hero, double distance) {
     return (HeroNearestMonsterDistance(hero) < distance);
+}
+
+int IsMonsterNearHero(int hero, int monster, double distance) {
+    return (HeroMonsterDistance(hero,monster) < distance);
 }
 
 void FillPotions(int hero);
@@ -599,7 +625,9 @@ void MonsterDies(int hero,int monster) {
                 FillPotions(hero);
                 if (mapdata[map].monsterBoss[monster] != 0) {
                     // Hero wins Map
-                    StartMap(hero,heroes[hero].map);
+                    //StartMap(hero,heroes[hero].map);
+                    heroes[hero].GameCleared = 1;
+                    heroes[hero].GameLost = 0;
                 }
             }
         }
@@ -636,10 +664,26 @@ void SpawnProjectile(int map,double x,double y, double angle, int type, double s
 }
 
 void KnightAttacksPoint(int hero,int x,int y) {
-    (void)hero; // to get rid of the "unused variable" message
-    (void)x;
-    (void)y;
-    // not supported right now
+    int valid = 1;
+    int map = heroes[hero].map;
+    for (int monster=0; monster<MAX_MONSTERS; monster++) {
+        if (valid != 0) {
+            if (mapdata[map].monsterExist[monster]) {
+                if (mapdata[map].monsterAlive[monster]) {
+                    if (IsMonsterInside(map,monster,x,y,32) != 0) {
+                        if (IsMonsterNearHero(hero,monster,100) != 0) {
+                            MonsterGetsFlatDamage(hero,monster,120);
+                            valid = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    heroes[hero].attackCycle = 0;
+    heroes[hero].attacking = 1;
+    heroes[hero].walking = 0;
+    heroes[hero].skilling = 0;
 }
 
 void KnightAttacksMonster(int hero,int monster) {
@@ -651,9 +695,9 @@ void KnightAttacksMonster(int hero,int monster) {
 }
 
 void MageAttacksPoint(int hero,int x,int y) {
-    if (heroes[hero].mana >= 10) {
+    if (heroes[hero].mana >= 1) {
         SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,LookAt(heroes[hero].x,heroes[hero].y,x,y),PROJECTILE_Arcane,10);
-        heroes[hero].mana -= 10;
+        heroes[hero].mana -= 1;
         heroes[hero].attackCycle = 0;
         heroes[hero].attacking = 1;
         heroes[hero].walking = 0;
@@ -662,9 +706,9 @@ void MageAttacksPoint(int hero,int x,int y) {
 }
 
 void MageAttacksMonster(int hero,int monster) {
-    if (heroes[hero].mana >= 10) {
+    if (heroes[hero].mana >= 1) {
         SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,LookAt(heroes[hero].x,heroes[hero].y,mapdata[heroes[hero].map].monsterX[monster],mapdata[heroes[hero].map].monsterY[monster]),PROJECTILE_Arcane,10);
-        heroes[hero].mana -= 10;
+        heroes[hero].mana -= 1;
         heroes[hero].attackCycle = 0;
         heroes[hero].attacking = 1;
         heroes[hero].walking = 0;
@@ -865,14 +909,14 @@ void HeroUsePotion(int hero,int potion) {
         if (heroes[hero].potionSlots[potion] == POTION_Health) {
             if (heroes[hero].potionState[potion] >= 10) {
                 heroes[hero].potionState[potion] -= 10;
-                heroes[hero].health += 5000;
+                heroes[hero].health += 500;
                 if (heroes[hero].health > heroes[hero].healthMax) heroes[hero].health = heroes[hero].healthMax;
             }
         }
         if (heroes[hero].potionSlots[potion] == POTION_Mana) {
             if (heroes[hero].potionState[potion] >= 10) {
                 heroes[hero].potionState[potion] -= 10;
-                heroes[hero].mana += 500;
+                heroes[hero].mana += 50;
                 if (heroes[hero].mana > heroes[hero].manaMax) heroes[hero].mana = heroes[hero].manaMax;
             }
         }
@@ -922,7 +966,7 @@ void HeroDeamon(int hero) {
             heroes[hero].walking = HeroHasTarget(hero,10);
             
             if ( heroes[hero].autopilotEnabled != 0) {
-                if (IsMonsterNearHero(hero,500) != 0) {
+                if (IsAnyMonsterNearHero(hero,500) != 0) {
                     int monster = HeroNearestMonster(hero);
                     if (monster > -1) {
                         heroes[hero].xTarget = mapdata[heroes[hero].map].monsterX[monster];
@@ -938,7 +982,7 @@ void HeroDeamon(int hero) {
                 if (heroes[hero].class == CLASS_Knight) attackDistance = 20;
                 if (heroes[hero].class == CLASS_Mage) attackDistance = 500;
                 if (heroes[hero].class == CLASS_Archer) attackDistance = 500;
-                if (IsMonsterNearHero(hero,attackDistance) != 0) {
+                if (IsAnyMonsterNearHero(hero,attackDistance) != 0) {
                     int monster = HeroNearestMonster(hero);
                     if (monster > -1) {
                         heroes[hero].xTarget = mapdata[heroes[hero].map].monsterX[monster];
@@ -1040,9 +1084,14 @@ void DrawMonsters(int map) {
 }
 
 void DrawValueFromValue(double x,double y,double scale,int value, int maxValue) {
+    if (value < 0) value = 0;
+    if (value > 1000000000) maxValue = 1000000000;
+    if (maxValue < 0) value = 0;
+    if (maxValue > 1000000000) maxValue = 1000000000;
     DrawImageScaled(Font[47],x,y,scale/2,scale);
     double xpos = 0;
     int v;
+    if (value == 0) DrawImageScaled(Font['0'],x-scale/2,y,scale/2,scale);
     while (value != 0) {
         v = value%10;
         value /= 10;
@@ -1304,6 +1353,9 @@ void DrawHero(int canvas, int hero) {
     DrawImageScaled(ManaTexture,901,461,(double)118*mana,8);
     
     DrawHeroGUI(hero);
+    
+    if (heroes[hero].GameCleared != 0) DrawImageScaled(GameClearTex,0,0,1920,1080);
+    if (heroes[hero].GameLost != 0) DrawImageScaled(GameLostTex,0,0,1920,1080);
 }
 
 void InitProjectils() {
@@ -1393,6 +1445,9 @@ void StartMap(int hero,int map) {
     heroes[hero].potionState[0] = 100;
     heroes[hero].potionState[1] = 100;
     heroes[hero].potionState[2] = 100;
+    heroes[hero].GameCleared = 0;
+    heroes[hero].GameLost = 0;
+    heroes[hero].GameCooldown = 300;
 }
 
 int LoadFont() {
@@ -1520,6 +1575,8 @@ int LoadTextures() {
     LOAD(ManaTexture     ,"assets/mana.png");
     LOAD(ManagedModeIcon ,"assets/tiled.png");
     LOAD(FullscreenIcon  ,"assets/fullscreen.png");
+    LOAD(GameClearTex    ,"assets/won.png");
+    LOAD(GameLostTex     ,"assets/lost.png");
     
     // Skills
     
@@ -1566,8 +1623,8 @@ void TestGame() {
     heroes[0].class = CLASS_Knight;
     heroes[0].speed = 10;
     heroes[0].autopilotEnabled = 1;
-    heroes[0].healthMax = 10000;
-    heroes[0].manaMax = 1000;
+    heroes[0].healthMax = 1000;
+    heroes[0].manaMax = 100;
     heroes[0].potionSlots[0] = POTION_Health;
     heroes[0].potionSlots[1] = POTION_Mana;
     heroes[0].potionSlots[2] = POTION_Mana;
@@ -1575,8 +1632,8 @@ void TestGame() {
     heroes[1].class = CLASS_Knight;
     heroes[1].speed = 10;
     heroes[1].autopilotEnabled = 1;
-    heroes[1].healthMax = 10000;
-    heroes[1].manaMax = 1000;
+    heroes[1].healthMax = 1000;
+    heroes[1].manaMax = 100;
     heroes[1].potionSlots[0] = POTION_Health;
     heroes[1].potionSlots[1] = POTION_Mana;
     heroes[1].potionSlots[2] = POTION_Mana;
@@ -1584,8 +1641,8 @@ void TestGame() {
     heroes[2].class = CLASS_Archer;
     heroes[2].speed = 10;
     heroes[2].autopilotEnabled = 1;
-    heroes[2].healthMax = 10000;
-    heroes[2].manaMax = 1000;
+    heroes[2].healthMax = 1000;
+    heroes[2].manaMax = 100;
     heroes[2].skillSlots[0] = 1;
     heroes[2].skillSlots[1] = 2;
     heroes[2].skillSlots[2] = 3;
@@ -1597,8 +1654,8 @@ void TestGame() {
     heroes[3].class = CLASS_Mage;
     heroes[3].speed = 10;
     heroes[3].autopilotEnabled = 1;
-    heroes[3].healthMax = 10000;
-    heroes[3].manaMax = 1000;
+    heroes[3].healthMax = 1000;
+    heroes[3].manaMax = 100;
     heroes[3].skillSlots[0] = 5;
     heroes[3].skillSlots[1] = 6;
     heroes[3].skillSlots[2] = 7;
@@ -1611,8 +1668,8 @@ void TestGame() {
     heroes[4].class = CLASS_Knight;
     heroes[4].speed = 50;
     heroes[4].autopilotEnabled = 1;
-    heroes[4].healthMax = 10000;
-    heroes[4].manaMax = 1000;
+    heroes[4].healthMax = 1000;
+    heroes[4].manaMax = 100;
     heroes[4].potionSlots[0] = POTION_Health;
     heroes[4].potionSlots[1] = POTION_Health;
     heroes[4].potionSlots[2] = POTION_Mana;
@@ -1622,6 +1679,21 @@ void TestGame() {
     StartMap(2,2);
     StartMap(3,3);
     StartMap(4,4);
+}
+
+void HeroGameDeamon(int hero) {
+    if (heroes[hero].GameCleared != 0) heroes[hero].GameCooldown--;
+    if (heroes[hero].GameLost != 0) heroes[hero].GameCooldown--;
+    if (heroes[hero].GameCooldown <= 0) {
+        if (heroes[hero].GameCleared != 0) {
+            StartMap(hero,heroes[hero].map); // won ... just restart same map for now
+            return;
+        }
+        if (heroes[hero].GameLost != 0) {
+            StartMap(hero,heroes[hero].map); // lost ... restart same map
+            return;
+        }
+    }
 }
 
 void GameMain(void) {
@@ -1657,6 +1729,7 @@ void GameMain(void) {
         for (int i=0; i<MAX_HEROES; i++) HeroDeamon(i);
         for (int i=0; i<MAX_MAPS; i++) MapDeamon(i);
         for (int i=0; i<MAX_PROJECTILES; i++) ProjectileDeamon(i);
+        for (int i=0; i<MAX_HEROES; i++) HeroGameDeamon(i);
         
         if (manageMode==0) {
             if (ActiveHero>=0) {
