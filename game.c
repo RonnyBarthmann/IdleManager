@@ -160,7 +160,7 @@ void DrawImageRotatedScaled(int ImageID, double x, double y, double a, double s)
     DrawImageRotated(ImageID,x*scale,y*scale,a,s*scale);
 }
 void DrawBox_(int x, int y, int w, int h, int c) {
-    for (int y_=y;y_<(x+h);y_++) {
+    for (int y_=y;y_<(y+h);y_++) {
         for (int x_=x;x_<(x+w);x_++) Plot(x_,y_,c);
     }
 }
@@ -852,7 +852,7 @@ void HeroSkillDemon(int hero) {
             }
             if (heroes[hero].skill == SKILL_Archer_Spray) {
                 if (heroes[hero].skillCycle == 0) {
-                    SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle+(((rand()&2000)/100)-10),PROJECTILE_Arrow,20);
+                    SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle+((rand()%20)-10),PROJECTILE_Arrow,20);
                 }
             }
             if (heroes[hero].skill == SKILL_Archer_Shotgun) {
@@ -871,7 +871,7 @@ void HeroSkillDemon(int hero) {
                 }
             }
             if (heroes[hero].skill == SKILL_Mage_Spray) {
-                    SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle+(((rand()&2000)/100)-10),PROJECTILE_Arcane,10);
+                    SpawnProjectile(heroes[hero].map,heroes[hero].x,heroes[hero].y,heroes[hero].angle+((rand()%20)-10),PROJECTILE_Arcane,10);
                 if (heroes[hero].skillCycle == 0) {
                 }
             }

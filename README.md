@@ -14,9 +14,9 @@ y,x,c,v,b: switch to test-character 1-5
 
 6: switch all heros to knight
 
-7: switch all heros to mana
+7: switch all heros to archer
 
-8: switch all heros to archer
+8: switch all heros to mage
 
 ### misc
 
